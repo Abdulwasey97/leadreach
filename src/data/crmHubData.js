@@ -1,11 +1,11 @@
 export const activeIntegrations = [
   {
-    id: 'salesforce',
-    name: 'Salesforce Enterprise',
-    subtitle: 'Production Instance: SF-4482-X',
-    status: 'Connected',
-    lastSync: '4 minutes ago',
-    volume: '12.4k leads / day',
+    id: 'zoho',
+    name: 'Zoho CRM',
+    subtitle: '',
+    status: 'Not Connected',
+    lastSync: '-',
+    volume: '',
     icon: 'cloud',
   },
   {
