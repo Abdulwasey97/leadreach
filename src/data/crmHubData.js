@@ -2,20 +2,11 @@ export const activeIntegrations = [
   {
     id: 'zoho',
     name: 'Zoho CRM',
-    subtitle: '',
+    subtitle: 'Unified pipeline sync for your growth team',
     status: 'Not Connected',
     lastSync: '-',
-    volume: '',
+    volume: '-',
     icon: 'cloud',
-  },
-  {
-    id: 'hubspot',
-    name: 'HubSpot CRM',
-    subtitle: 'Marketing Hub Professional',
-    status: 'Connected',
-    lastSync: '12 minutes ago',
-    volume: '3.2k leads / day',
-    icon: 'hub',
   },
 ]
 

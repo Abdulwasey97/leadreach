@@ -1,6 +1,6 @@
 import ActiveIntegrationsSection from '../components/crmHub/ActiveIntegrationsSection'
 import CrmHubRightRail from '../components/crmHub/CrmHubRightRail'
-import PartnerLibrarySection from '../components/crmHub/PartnerLibrarySection'
+
 import Sidebar from '../components/layout/Sidebar'
 import TopNavbar from '../components/layout/TopNavbar'
 
@@ -21,14 +21,12 @@ function CrmHubPage({ onNavigate }) {
                     <h2 className="text-4xl font-bold tracking-tight text-slate-800">CRM Connections</h2>
                     <p className="max-w-2xl text-slate-500">Manage your enterprise data bridge and synchronization logic.</p>
                   </div>
-                  <button type="button" className="rounded-lg bg-cyan-600 px-5 py-3 text-sm font-semibold text-white hover:bg-cyan-700">
-                    Add New Connection
-                  </button>
+                
                 </div>
               </section>
 
               <ActiveIntegrationsSection />
-              <PartnerLibrarySection />
+             
             </main>
 
             <CrmHubRightRail />

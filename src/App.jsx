@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import CrmHubPage from './pages/CrmHubPage'
 import DashboardPage from './pages/DashboardPage'
 import LeadSearchPage from './pages/LeadSearchPage'
+import SettingsPage from './pages/SettingsPage'
 
 function normalizePageKey(value) {
   return String(value ?? '')
@@ -165,6 +166,10 @@ function App() {
       setActivePage('search')
       return
     }
+
+    if (key === 'settings') {
+      setActivePage('settings')
+    }
   }
 
   if (activePage === 'dashboard') {
@@ -199,6 +204,24 @@ function App() {
           </div>
         ) : null}
         <CrmHubPage onNavigate={handleNavigate} />
+      </>
+    )
+  }
+
+  if (activePage === 'settings') {
+    return (
+      <>
+        {successToast ? (
+          <div className="fixed right-4 top-4 z-[1000] rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
+            {successToast}
+          </div>
+        ) : null}
+        {errorToast ? (
+          <div className="fixed right-4 top-20 z-[1000] rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
+            {errorToast}
+          </div>
+        ) : null}
+        <SettingsPage onNavigate={handleNavigate} />
       </>
     )
   }
