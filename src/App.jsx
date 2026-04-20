@@ -53,6 +53,90 @@ function App() {
   }, [])
 
   useEffect(() => {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://leadreach.api-pct.com'
+
+    const bootstrapOrgAndUser = async () => {
+      const orgRequestBody = {
+        orgIdentifier: 'ORG-2012',
+        orgName: 'Prime Cloud Industries',
+        orgPrimayEmail: 'prime@cloudtech.com',
+        orgPhone: '+92-321-9876543',
+        orgAddress: 'Plot 45, G-10 Markaz, Islamabad, Pakistan',
+        orgStatus: 'Paid',
+      }
+
+      try {
+        const orgResponse = await fetch(`${apiBaseUrl}/api/Org/v1/FetchOrganizationDetails`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            DataCenter: 'crm.zoho.com',
+            referer: 'https://localhost:44352',
+          },
+          body: JSON.stringify(orgRequestBody),
+        })
+
+        if (!orgResponse.ok) {
+          throw new Error(`FetchOrganizationDetails failed (${orgResponse.status})`)
+        }
+
+        const orgPayload = await orgResponse.json()
+        const orgFailed = orgPayload?.Code === 500 || String(orgPayload?.Status || '').toLowerCase() === 'failure'
+
+        if (orgFailed) {
+          throw new Error(orgPayload?.Reason || 'FetchOrganizationDetails failed')
+        }
+
+        localStorage.setItem('organization_details_response', JSON.stringify(orgPayload))
+
+        const orgIdentifier =
+          orgPayload?.OrganizationDetails?.orgIdentifier ||
+          orgPayload?.orgIdentifier ||
+          orgRequestBody.orgIdentifier
+
+        localStorage.setItem('organization_identifier', orgIdentifier)
+
+        const userRequestBody = {
+          userName: 'hassan.ali',
+          userPass: 'P@ssw0rd123',
+          userFirstName: 'Hassan',
+          userLastName: 'Ali',
+          userPhone: '+923259511211',
+          userEmail: 'hassan.ali@primecloudtech.net',
+          orgIdentifier,
+        }
+
+        const userResponse = await fetch(`${apiBaseUrl}/api/User/v1/FetchUserDetails`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(userRequestBody),
+        })
+
+        if (!userResponse.ok) {
+          throw new Error(`FetchUserDetails failed (${userResponse.status})`)
+        }
+
+        const userPayload = await userResponse.json()
+        const userFailed = userPayload?.Code === 500 || String(userPayload?.Status || '').toLowerCase() === 'failure'
+
+        if (userFailed) {
+          throw new Error(userPayload?.Reason || 'FetchUserDetails failed')
+        }
+
+        localStorage.setItem('user_details_response', JSON.stringify(userPayload))
+        localStorage.setItem('user_details', JSON.stringify(userPayload?.UserDetails || {}))
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to fetch organization/user details'
+        localStorage.setItem('bootstrap_details_error', message)
+      }
+    }
+
+    bootstrapOrgAndUser()
+  }, [])
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const grantCode = params.get('code')
 
