@@ -1,6 +1,52 @@
 import { quotas } from '../../data/dashboardData'
 
-function QuotaList() {
+function buildUsageQuotas(usageDetails) {
+  if (!usageDetails) {
+    return quotas
+  }
+
+  return [
+    {
+      id: 'google',
+      platform: 'Google Search',
+      value: usageDetails.GoogleSearchLimitUtilized || 0,
+      max: usageDetails.TotalGoogleSearchLimit || 0,
+      color: 'bg-emerald-500',
+    },
+    {
+      id: 'linkedin',
+      platform: 'LinkedIn Search',
+      value: usageDetails.LinkedinSearchLimitUtilized || 0,
+      max: usageDetails.TotalLinkedinSearchLimit || 0,
+      color: 'bg-sky-500',
+    },
+    {
+      id: 'facebook',
+      platform: 'Facebook Search',
+      value: usageDetails.FbSearchLimitUtilized || 0,
+      max: usageDetails.TotalFbSearchLimit || 0,
+      color: 'bg-indigo-500',
+    },
+    {
+      id: 'instagram',
+      platform: 'Instagram Search',
+      value: usageDetails.InstaSearchLimitUtilized || 0,
+      max: usageDetails.TotalInstaSearchLimit || 0,
+      color: 'bg-fuchsia-500',
+    },
+    {
+      id: 'email',
+      platform: 'Email Enrichment',
+      value: usageDetails.EmailEnrichmentUtilized || 0,
+      max: usageDetails.TotalEmailEnrichment || 0,
+      color: 'bg-amber-500',
+    },
+  ]
+}
+
+function QuotaList({ usageDetails }) {
+  const quotaItems = buildUsageQuotas(usageDetails)
+
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5 flex items-center justify-between">
@@ -9,8 +55,8 @@ function QuotaList() {
       </div>
 
       <ul className="space-y-4">
-        {quotas.map((quota) => {
-          const percentage = Math.min(100, Math.round((quota.value / quota.max) * 100))
+        {quotaItems.map((quota) => {
+          const percentage = quota.max > 0 ? Math.min(100, Math.round((quota.value / quota.max) * 100)) : 0
 
           return (
             <li key={quota.id}>
@@ -28,12 +74,7 @@ function QuotaList() {
         })}
       </ul>
 
-      <button
-        type="button"
-        className="mt-6 w-full rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-      >
-        Manage All Limits
-      </button>
+   
     </section>
   )
 }

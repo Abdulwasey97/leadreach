@@ -4,6 +4,9 @@ import DashboardPage from './pages/DashboardPage'
 import LeadSearchPage from './pages/LeadSearchPage'
 import SettingsPage from './pages/SettingsPage'
 
+const PAGE_STORAGE_KEY = 'leadreach_active_page'
+const ALLOWED_PAGES = new Set(['dashboard', 'search', 'crm', 'settings'])
+
 function normalizePageKey(value) {
   return String(value ?? '')
     .toLowerCase()
@@ -11,7 +14,10 @@ function normalizePageKey(value) {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState('search')
+  const [activePage, setActivePage] = useState(() => {
+    const storedPage = localStorage.getItem(PAGE_STORAGE_KEY)
+    return ALLOWED_PAGES.has(storedPage) ? storedPage : 'dashboard'
+  })
   const [errorToast, setErrorToast] = useState('')
   const [successToast, setSuccessToast] = useState('')
 
@@ -135,6 +141,12 @@ function App() {
 
     bootstrapOrgAndUser()
   }, [])
+
+  useEffect(() => {
+    if (ALLOWED_PAGES.has(activePage)) {
+      localStorage.setItem(PAGE_STORAGE_KEY, activePage)
+    }
+  }, [activePage])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)

@@ -116,13 +116,7 @@ function SettingsPage({ onNavigate }) {
                   <h2 className="text-3xl font-bold tracking-tight text-slate-800">Settings</h2>
                   <p className="text-slate-500">Manage integration state and connection details.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleRefresh}
-                  className="rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-700 hover:bg-cyan-100"
-                >
-                  Refresh Data
-                </button>
+             
               </div>
             </section>
 
