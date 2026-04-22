@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { syncSettings } from '../../data/crmHubData'
 
 function Toggle({ enabled }) {
@@ -8,10 +9,69 @@ function Toggle({ enabled }) {
   )
 }
 
+function IntegrationStatusCard({ name, subtitle, status, tone }) {
+  const badgeStyle =
+    tone === 'success'
+      ? 'bg-emerald-100 text-emerald-700'
+      : tone === 'warning'
+        ? 'bg-amber-100 text-amber-700'
+        : 'bg-slate-200 text-slate-600'
+
+  return (
+    <article className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-800">{name}</p>
+          <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${badgeStyle}`}>
+          {status}
+        </span>
+      </div>
+    </article>
+  )
+}
+
 function CrmHubRightRail() {
+  const [isZohoConnected, setIsZohoConnected] = useState(() => localStorage.getItem('zoho_connected') === 'true')
+
+  useEffect(() => {
+    const handleConnectionUpdated = () => {
+      setIsZohoConnected(localStorage.getItem('zoho_connected') === 'true')
+    }
+
+    window.addEventListener('zoho-connection-updated', handleConnectionUpdated)
+    return () => {
+      window.removeEventListener('zoho-connection-updated', handleConnectionUpdated)
+    }
+  }, [])
+
   return (
     <aside className="space-y-4">
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">CRM Connectors</p>
+        </div>
+        <div className="space-y-3">
+          <IntegrationStatusCard
+            name="Zoho CRM"
+            subtitle="Two-way contact and pipeline sync"
+            status={isZohoConnected ? 'Connected' : 'Not Connected'}
+            tone={isZohoConnected ? 'success' : 'neutral'}
+          />
+          <IntegrationStatusCard
+            name="HubSpot CRM"
+            subtitle="Marketing and lifecycle sync"
+            status="Coming Soon"
+            tone="warning"
+          />
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Sync Controls</p>
+        </div>
         <ul className="space-y-4">
           {syncSettings.map((setting) => (
             <li key={setting.id} className="flex items-start justify-between gap-2">

@@ -1,21 +1,9 @@
 import { topNavItems } from '../../data/dashboardData'
 
-function TopNavbar({ searchPlaceholder = 'Search global leads...', showSupport = false, showAvatar = false }) {
+function TopNavbar({ showSupport = false, showAvatar = false }) {
   return (
     <header className="flex items-center gap-6 border-b border-slate-200 bg-white px-8 py-4">
-      <div className="flex-1">
-        <label htmlFor="lead-search" className="sr-only">
-          Search global leads
-        </label>
-        <input
-          id="lead-search"
-          type="search"
-          placeholder={searchPlaceholder}
-          className="w-full max-w-md rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-cyan-500 focus:bg-white focus:outline-none"
-        />
-      </div>
-
-      <nav className="hidden items-center gap-6 md:flex">
+      <nav className="ml-auto hidden items-center gap-6 md:flex">
         {topNavItems.map((item) => (
           <button key={item} type="button" className="text-sm font-medium text-slate-500 transition hover:text-slate-700">
             {item}

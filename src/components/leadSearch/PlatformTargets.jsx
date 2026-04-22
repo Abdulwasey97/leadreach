@@ -40,29 +40,33 @@ function TargetIcon({ icon }) {
   )
 }
 
-function PlatformTargets() {
+function PlatformTargets({ selectedSource, onSelectSource }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-3xl font-semibold text-slate-800">Target Platforms</h3>
-        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Select one or more</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Select one</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {platformTargets.map((platform) => (
+        {platformTargets.map((platform) => {
+          const isSelected = selectedSource === platform.id
+          return (
           <article
             key={platform.id}
-            className={`rounded-xl border p-5 transition ${
-              platform.selected ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+            onClick={() => onSelectSource(platform.id)}
+            className={`cursor-pointer rounded-xl border p-5 transition ${
+              isSelected ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-slate-50 hover:border-slate-300'
             }`}
           >
-            <div className={`mb-4 inline-flex rounded-xl p-3 ${platform.selected ? 'bg-slate-900 text-white' : 'bg-white text-sky-500'}`}>
+            <div className={`mb-4 inline-flex rounded-xl p-3 ${isSelected ? 'bg-slate-900 text-white' : 'bg-white text-sky-500'}`}>
               <TargetIcon icon={platform.icon} />
             </div>
             <h4 className="text-2xl font-semibold text-slate-800">{platform.name}</h4>
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{platform.type}</p>
           </article>
-        ))}
+          )
+        })}
       </div>
     </section>
   )

@@ -13,6 +13,11 @@ function normalizePageKey(value) {
     .replace(/[^a-z]/g, '')
 }
 
+function hasConnectedIntegration(payload) {
+  const integrations = payload?.IntegrationList
+  return Array.isArray(integrations) && integrations.length > 0
+}
+
 function App() {
   const [activePage, setActivePage] = useState(() => {
     const storedPage = localStorage.getItem(PAGE_STORAGE_KEY)
@@ -97,8 +102,13 @@ function App() {
 
         const orgIdentifier =
           orgPayload?.OrganizationDetails?.orgIdentifier ||
+          orgPayload?.OrgDetails?.organizationID ||
           orgPayload?.orgIdentifier ||
           orgRequestBody.orgIdentifier
+        const walletIdentifier =
+          orgPayload?.OrganizationDetails?.walletIdentifier ||
+          orgPayload?.OrgDetails?.walletIdentifier ||
+          'Wal775AAC24994C'
 
         localStorage.setItem('organization_identifier', orgIdentifier)
 
@@ -133,6 +143,67 @@ function App() {
 
         localStorage.setItem('user_details_response', JSON.stringify(userPayload))
         localStorage.setItem('user_details', JSON.stringify(userPayload?.UserDetails || {}))
+
+        const integrationListResponse = await fetch(`${apiBaseUrl}/api/Integration/v1/RetrieveIntegrationList`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            DataCenter: 'crm.zoho.com',
+            referer: 'https://localhost:44352',
+          },
+          body: JSON.stringify({
+            orgIdentifier,
+          }),
+        })
+
+        if (!integrationListResponse.ok) {
+          throw new Error(`RetrieveIntegrationList failed (${integrationListResponse.status})`)
+        }
+
+        const integrationListPayload = await integrationListResponse.json()
+        const integrationListFailed =
+          integrationListPayload?.Code === 500 || String(integrationListPayload?.Status || '').toLowerCase() === 'failure'
+
+        if (integrationListFailed) {
+          throw new Error(integrationListPayload?.Reason || 'RetrieveIntegrationList failed')
+        }
+
+        localStorage.setItem('zoho_integration_list_response', JSON.stringify(integrationListPayload))
+        localStorage.setItem('zoho_integration_list', JSON.stringify(integrationListPayload?.IntegrationList || []))
+        localStorage.setItem('zoho_connected', hasConnectedIntegration(integrationListPayload) ? 'true' : 'false')
+        localStorage.removeItem('zoho_integration_error')
+        window.dispatchEvent(new Event('zoho-connection-updated'))
+
+        const usageResponse = await fetch(`${apiBaseUrl}/api/Org/v1/Update_Usage`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            DataCenter: 'crm.zoho.com',
+            referer: 'https://localhost:44352',
+          },
+          body: JSON.stringify({
+            orgIdentifier,
+            walletIdentifier,
+            UsageType: 'Google',
+            UsageQty: 1,
+          }),
+        })
+
+        if (!usageResponse.ok) {
+          throw new Error(`Update_Usage failed (${usageResponse.status})`)
+        }
+
+        const usagePayload = await usageResponse.json()
+        const usageFailed = usagePayload?.Code === 500 || String(usagePayload?.Status || '').toLowerCase() === 'failure'
+
+        if (usageFailed) {
+          throw new Error(usagePayload?.Reason || 'Update_Usage failed')
+        }
+
+        localStorage.setItem('usage_details_response', JSON.stringify(usagePayload))
+        localStorage.setItem('usage_details', JSON.stringify(usagePayload?.UsageDetails || {}))
+        localStorage.setItem('usage_details_org_identifier', orgIdentifier)
+        localStorage.setItem('usage_details_wallet_identifier', walletIdentifier)
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to fetch organization/user details'
         localStorage.setItem('bootstrap_details_error', message)
@@ -166,7 +237,7 @@ function App() {
       try {
         const requestUrl = `${integrationApiBaseUrl}/api/Integration/v1/CreateIntegration`
         const requestBody = {
-          orgIdentifier: 'ORG-2002',
+          orgIdentifier: 'ORG-2012',
           integrationAlias: 'Persona',
           integrationType: 'Zoho',
           GrantCode: grantCode,
@@ -196,14 +267,11 @@ function App() {
           throw new Error(payload?.Reason || 'CreateIntegration failed')
         }
 
-        localStorage.setItem('zoho_connected', 'true')
         localStorage.setItem('zoho_integration_response', JSON.stringify(payload))
-        localStorage.removeItem('zoho_integration_error')
-        window.dispatchEvent(new Event('zoho-connection-updated'))
 
         try {
           const retrieveListRequestBody = {
-            orgIdentifier: 'ORG-2002',
+            orgIdentifier: 'ORG-2012',
           }
           const retrieveListResponse = await fetch(`${integrationApiBaseUrl}/api/Integration/v1/RetrieveIntegrationList`, {
             method: 'POST',
@@ -225,6 +293,9 @@ function App() {
 
           localStorage.setItem('zoho_integration_list_response', JSON.stringify(retrieveListPayload))
           localStorage.setItem('zoho_integration_list', JSON.stringify(retrieveListPayload?.IntegrationList || []))
+          localStorage.setItem('zoho_connected', hasConnectedIntegration(retrieveListPayload) ? 'true' : 'false')
+          localStorage.removeItem('zoho_integration_error')
+          window.dispatchEvent(new Event('zoho-connection-updated'))
           showSuccessToast('Retrieved successfully')
         } catch (error) {
           const failureMessage = error instanceof Error ? error.message : 'RetrieveIntegrationList request failed'

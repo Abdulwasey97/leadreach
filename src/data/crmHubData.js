@@ -6,7 +6,17 @@ export const activeIntegrations = [
     status: 'Not Connected',
     lastSync: '-',
     volume: '-',
-    icon: 'cloud',
+    icon: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQCTa7jaaUxlwuw00k70VN8cUC_AFRMSdlRuA&s',
+  },
+  {
+    id: 'hubspot',
+    name: 'HubSpot CRM',
+    subtitle: 'Marketing and sales sync will be available soon',
+    status: 'Coming Soon',
+    lastSync: '-',
+    volume: '-',
+    icon: 'hub',
+    comingSoon: true,
   },
 ]
 

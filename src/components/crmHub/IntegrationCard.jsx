@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 
 function IntegrationIcon({ icon }) {
+  if (typeof icon === 'string' && /^https?:\/\//.test(icon)) {
+    return <img src={icon} alt="Integration logo" className="size-5 object-contain" loading="lazy" />
+  }
+
   if (icon === 'hub') {
     return (
       <svg viewBox="0 0 24 24" className="size-5 text-orange-500" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -26,13 +30,14 @@ function IntegrationCard({ integration }) {
   const [showDisconnectAction, setShowDisconnectAction] = useState(false)
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
   const isZohoIntegration = integration.id === 'zoho'
+  const isComingSoon = integration.comingSoon === true
   const [errorMessage, setErrorMessage] = useState(() =>
     isZohoIntegration ? localStorage.getItem('zoho_integration_error') || '' : '',
   )
   const [isZohoConnected, setIsZohoConnected] = useState(() =>
     isZohoIntegration ? localStorage.getItem('zoho_connected') === 'true' : false,
   )
-  const resolvedStatus = isZohoConnected ? 'Connected' : 'Not Connected'
+  const resolvedStatus = isComingSoon ? 'Coming Soon' : isZohoConnected ? 'Connected' : 'Not Connected'
   const isConnected = resolvedStatus.toLowerCase() === 'connected'
 
   useEffect(() => {
@@ -162,7 +167,11 @@ function IntegrationCard({ integration }) {
   }
 
   return (
-    <article className="relative overflow-hidden rounded-3xl border-2 border-cyan-200/90 bg-gradient-to-br from-white via-cyan-50/60 to-indigo-50 p-6 shadow-[0_18px_40px_-24px_rgba(14,116,144,0.45)]">
+    <article
+      className={`relative overflow-hidden rounded-3xl border-2 border-cyan-200/90 bg-gradient-to-br from-white via-cyan-50/60 to-indigo-50 p-6 shadow-[0_18px_40px_-24px_rgba(14,116,144,0.45)] ${
+        isComingSoon ? 'opacity-85 blur-[0.6px]' : ''
+      }`}
+    >
       <div className="pointer-events-none absolute -right-14 -top-20 h-44 w-44 rounded-full bg-cyan-200/40 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-indigo-200/30 blur-3xl" />
 
@@ -191,27 +200,31 @@ function IntegrationCard({ integration }) {
         <p className="text-xs font-medium text-slate-500">Secure OAuth connection</p>
         <button
           type="button"
-          onClick={isZohoConnected ? handleDisconnect : handleConnect}
+          onClick={isComingSoon ? undefined : isZohoConnected ? handleDisconnect : handleConnect}
           onMouseEnter={() => {
-            if (isZohoConnected) {
+            if (isZohoConnected && !isComingSoon) {
               setShowDisconnectAction(true)
             }
           }}
           onMouseLeave={() => {
-            if (isZohoConnected) {
+            if (isZohoConnected && !isComingSoon) {
               setShowDisconnectAction(false)
             }
           }}
-          disabled={isConnecting || isDisconnecting}
+          disabled={isComingSoon || isConnecting || isDisconnecting}
           className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed ${
-            isZohoConnected
+            isComingSoon
+              ? 'bg-slate-400'
+              : isZohoConnected
               ? showDisconnectAction
                 ? 'bg-red-600 shadow-md shadow-red-600/25 hover:-translate-y-0.5 hover:bg-red-700'
                 : 'bg-emerald-600 shadow-md shadow-emerald-600/25 hover:-translate-y-0.5 hover:bg-emerald-700'
               : 'bg-cyan-600 shadow-md shadow-cyan-600/25 hover:-translate-y-0.5 hover:bg-cyan-700'
           } ${isConnecting || isDisconnecting ? 'opacity-70' : ''}`}
         >
-          {isDisconnecting
+          {isComingSoon
+            ? 'Coming Soon'
+            : isDisconnecting
             ? 'Disconnecting...'
             : isZohoConnected
               ? showDisconnectAction
