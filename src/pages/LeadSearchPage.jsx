@@ -7,6 +7,7 @@ import Sidebar from '../components/layout/Sidebar'
 import TopNavbar from '../components/layout/TopNavbar'
 
 function LeadSearchPage({ onNavigate }) {
+  const PAGE_SIZE = 10
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://leadreach.api-pct.com'
   const leadLookupUserEmail = import.meta.env.VITE_LEAD_LOOKUP_USER_EMAIL || 'hassan.a@zenithinnovations.net'
   const [query, setQuery] = useState('software houses in rawalpindi')
@@ -16,7 +17,7 @@ function LeadSearchPage({ onNavigate }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [leads, setLeads] = useState([])
-  const [totalEmails, setTotalEmails] = useState(0)
+  const [totalLeads, setTotalLeads] = useState(0)
   const [selectedRows, setSelectedRows] = useState({})
 
   const selectedCount = useMemo(
@@ -24,7 +25,17 @@ function LeadSearchPage({ onNavigate }) {
     [selectedRows],
   )
 
-  const allRowsSelected = leads.length > 0 && selectedCount === leads.length
+  const [currentPage, setCurrentPage] = useState(1)
+  const totalPages = Math.max(1, Math.ceil((totalLeads || leads.length) / PAGE_SIZE))
+  const paginatedLeads = useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE
+    return leads.slice(startIndex, startIndex + PAGE_SIZE)
+  }, [currentPage, leads])
+  const currentPageRowKeys = useMemo(
+    () => paginatedLeads.map((lead, index) => `${lead.name || lead.email || 'lead'}-${(currentPage - 1) * PAGE_SIZE + index}`),
+    [currentPage, paginatedLeads],
+  )
+  const allRowsSelected = currentPageRowKeys.length > 0 && currentPageRowKeys.every((rowKey) => Boolean(selectedRows[rowKey]))
 
   const handleToggleEmailType = (type) => {
     setEmailTypes((prev) => {
@@ -60,7 +71,7 @@ function LeadSearchPage({ onNavigate }) {
     const orgIdentifier = localStorage.getItem('organization_identifier') || 'ORG-2002'
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/Lead/v1/LookingUp_Leads`, {
+      const response = await fetch(`${apiBaseUrl}/api/Leads/v2/LookingUp_Leads`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -85,14 +96,16 @@ function LeadSearchPage({ onNavigate }) {
         throw new Error(payload?.Reason || 'Unable to fetch leads right now.')
       }
 
-      const list = Array.isArray(payload?.leads) ? payload.leads : []
+      const list = Array.isArray(payload?.Leads) ? payload.Leads : Array.isArray(payload?.leads) ? payload.leads : []
       setLeads(list)
-      setTotalEmails(Number(payload?.totalEmails) || list.length)
+      setTotalLeads(Number(payload?.TotalLeads ?? payload?.totalEmails) || list.length)
       setSelectedRows({})
+      setCurrentPage(1)
     } catch (requestError) {
       setLeads([])
-      setTotalEmails(0)
+      setTotalLeads(0)
       setSelectedRows({})
+      setCurrentPage(1)
       setError(requestError instanceof Error ? requestError.message : 'Failed to search leads.')
     } finally {
       setLoading(false)
@@ -105,12 +118,13 @@ function LeadSearchPage({ onNavigate }) {
       return
     }
 
-    const nextSelectedRows = {}
-    leads.forEach((lead, index) => {
-      const key = `${lead.email || 'lead'}-${index}`
-      nextSelectedRows[key] = true
+    setSelectedRows((prev) => {
+      const nextSelectedRows = { ...prev }
+      currentPageRowKeys.forEach((rowKey) => {
+        nextSelectedRows[rowKey] = true
+      })
+      return nextSelectedRows
     })
-    setSelectedRows(nextSelectedRows)
   }
 
   const handleRowSelection = (rowKey) => {
@@ -149,7 +163,7 @@ function LeadSearchPage({ onNavigate }) {
                   <div>
                     <h3 className="text-lg font-semibold text-slate-800">Search Results</h3>
                     <p className="text-sm text-slate-500">
-                      {loading ? 'Fetching results from Zoho CRM...' : `${totalEmails} emails found`}
+                      {loading ? 'Fetching results from Zoho CRM...' : `${totalLeads} leads found`}
                     </p>
                   </div>
                   <div className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
@@ -174,19 +188,26 @@ function LeadSearchPage({ onNavigate }) {
                           />
                         </th>
                         <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Email
+                          Name
                         </th>
                         <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Platform
+                          Phone
                         </th>
                         <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Source URL
+                          Website
+                        </th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Address
+                        </th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Rating
                         </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
-                      {leads.map((lead, index) => {
-                        const rowKey = `${lead.email || 'lead'}-${index}`
+                      {paginatedLeads.map((lead, index) => {
+                        const absoluteIndex = (currentPage - 1) * PAGE_SIZE + index
+                        const rowKey = `${lead.name || lead.email || 'lead'}-${absoluteIndex}`
                         const isSelected = Boolean(selectedRows[rowKey])
 
                         return (
@@ -199,27 +220,27 @@ function LeadSearchPage({ onNavigate }) {
                                 className="size-4 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
                               />
                             </td>
-                            <td className="px-5 py-3 text-sm text-slate-700">{lead.email || '-'}</td>
-                            <td className="px-5 py-3 text-sm">
-                              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                                {lead.platform || '-'}
-                              </span>
-                            </td>
+                            <td className="px-5 py-3 text-sm text-slate-700">{lead.name || '-'}</td>
+                            <td className="px-5 py-3 text-sm text-slate-700">{lead.phone || '-'}</td>
                             <td className="px-5 py-3 text-sm text-cyan-700">
-                              {lead.sourceUrl ? (
-                                <a href={lead.sourceUrl} target="_blank" rel="noreferrer" className="hover:underline">
-                                  View Source
+                              {lead.website ? (
+                                <a href={lead.website} target="_blank" rel="noreferrer" className="hover:underline">
+                                  Visit Website
                                 </a>
                               ) : (
                                 '-'
                               )}
+                            </td>
+                            <td className="px-5 py-3 text-sm text-slate-600">{lead.address || '-'}</td>
+                            <td className="px-5 py-3 text-sm text-slate-700">
+                              {lead.rating ? `${lead.rating} (${lead.reviews || 0} reviews)` : '-'}
                             </td>
                           </tr>
                         )
                       })}
                       {!loading && leads.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="px-5 py-8 text-center text-sm text-slate-500">
+                          <td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-500">
                             Start a search to load leads from Zoho CRM.
                           </td>
                         </tr>
@@ -227,6 +248,31 @@ function LeadSearchPage({ onNavigate }) {
                     </tbody>
                   </table>
                 </div>
+                {totalLeads > PAGE_SIZE ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4">
+                    <p className="text-sm text-slate-500">
+                      Page {currentPage} of {totalPages}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </section>
             </main>
 
