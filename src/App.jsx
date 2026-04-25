@@ -105,10 +105,6 @@ function App() {
           orgPayload?.OrgDetails?.organizationID ||
           orgPayload?.orgIdentifier ||
           orgRequestBody.orgIdentifier
-        const walletIdentifier =
-          orgPayload?.OrganizationDetails?.walletIdentifier ||
-          orgPayload?.OrgDetails?.walletIdentifier ||
-          'Wal775AAC24994C'
 
         localStorage.setItem('organization_identifier', orgIdentifier)
 
@@ -173,37 +169,6 @@ function App() {
         localStorage.setItem('zoho_connected', hasConnectedIntegration(integrationListPayload) ? 'true' : 'false')
         localStorage.removeItem('zoho_integration_error')
         window.dispatchEvent(new Event('zoho-connection-updated'))
-
-        const usageResponse = await fetch(`${apiBaseUrl}/api/Org/v1/Update_Usage`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            DataCenter: 'crm.zoho.com',
-            referer: 'https://localhost:44352',
-          },
-          body: JSON.stringify({
-            orgIdentifier,
-            walletIdentifier,
-            UsageType: 'Google',
-            UsageQty: 1,
-          }),
-        })
-
-        if (!usageResponse.ok) {
-          throw new Error(`Update_Usage failed (${usageResponse.status})`)
-        }
-
-        const usagePayload = await usageResponse.json()
-        const usageFailed = usagePayload?.Code === 500 || String(usagePayload?.Status || '').toLowerCase() === 'failure'
-
-        if (usageFailed) {
-          throw new Error(usagePayload?.Reason || 'Update_Usage failed')
-        }
-
-        localStorage.setItem('usage_details_response', JSON.stringify(usagePayload))
-        localStorage.setItem('usage_details', JSON.stringify(usagePayload?.UsageDetails || {}))
-        localStorage.setItem('usage_details_org_identifier', orgIdentifier)
-        localStorage.setItem('usage_details_wallet_identifier', walletIdentifier)
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to fetch organization/user details'
         localStorage.setItem('bootstrap_details_error', message)

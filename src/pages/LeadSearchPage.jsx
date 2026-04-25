@@ -1,10 +1,28 @@
 import { useMemo, useState } from 'react'
 import AdvancedFilteringCard from '../components/leadSearch/AdvancedFilteringCard'
-import LeadSearchHero from '../components/leadSearch/LeadSearchHero'
 import LeadSearchRightRail from '../components/leadSearch/LeadSearchRightRail'
-import PlatformTargets from '../components/leadSearch/PlatformTargets'
 import Sidebar from '../components/layout/Sidebar'
 import TopNavbar from '../components/layout/TopNavbar'
+import { platformTargets } from '../data/leadSearchData'
+
+const EMAIL_TYPES_BY_CATEGORY = {
+  personal: ['gmail', 'outlook', 'hotmail', 'yahoo'],
+  business: ['info', 'contact', 'sales', 'support', 'admin'],
+}
+
+const SOURCE_TO_API_VALUE = {
+  google: 'google',
+  facebook: 'fb',
+  instagram: 'instagram',
+  linkedin: 'linkedin',
+}
+
+const SOURCE_TO_USAGE_TYPE = {
+  google: 'Google',
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  linkedin: 'LinkedIn',
+}
 
 function LeadSearchPage({ onNavigate }) {
   const PAGE_SIZE = 10
@@ -13,7 +31,7 @@ function LeadSearchPage({ onNavigate }) {
   const [query, setQuery] = useState('software houses in rawalpindi')
   const [selectedSource, setSelectedSource] = useState('google')
   const [emailCategory, setEmailCategory] = useState('personal')
-  const [emailTypes, setEmailTypes] = useState(['info', 'contact'])
+  const [emailTypes, setEmailTypes] = useState(EMAIL_TYPES_BY_CATEGORY.personal)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [leads, setLeads] = useState([])
@@ -46,6 +64,11 @@ function LeadSearchPage({ onNavigate }) {
     })
   }
 
+  const handleEmailCategoryChange = (category) => {
+    setEmailCategory(category)
+    setEmailTypes(EMAIL_TYPES_BY_CATEGORY[category] || [])
+  }
+
   const handleSelectSource = (source) => {
     setSelectedSource(source)
   }
@@ -68,7 +91,14 @@ function LeadSearchPage({ onNavigate }) {
 
     setLoading(true)
     setError('')
-    const orgIdentifier = localStorage.getItem('organization_identifier') || 'ORG-2002'
+    const orgIdentifier = localStorage.getItem('organization_identifier') || 'ORG-2012'
+    const sourceForPayload = SOURCE_TO_API_VALUE[selectedSource] || selectedSource
+    const orgPayload = JSON.parse(localStorage.getItem('organization_details_response') || '{}')
+    const walletIdentifier =
+      orgPayload?.OrganizationDetails?.walletIdentifier ||
+      orgPayload?.OrgDetails?.walletIdentifier ||
+      localStorage.getItem('usage_details_wallet_identifier') ||
+      'Wal775AAC24994C'
 
     try {
       const response = await fetch(`${apiBaseUrl}/api/Leads/v2/LookingUp_Leads`, {
@@ -79,7 +109,7 @@ function LeadSearchPage({ onNavigate }) {
         body: JSON.stringify({
           orgIdentifier,
           query: query.trim(),
-          source: selectedSource,
+          source: sourceForPayload,
           userEmail: leadLookupUserEmail,
           emailCategory,
           emailTypes,
@@ -101,6 +131,40 @@ function LeadSearchPage({ onNavigate }) {
       setTotalLeads(Number(payload?.TotalLeads ?? payload?.totalEmails) || list.length)
       setSelectedRows({})
       setCurrentPage(1)
+
+      try {
+        const usageResponse = await fetch(`${apiBaseUrl}/api/Org/v1/Update_Usage`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            DataCenter: 'crm.zoho.com',
+            referer: 'https://localhost:44352',
+          },
+          body: JSON.stringify({
+            orgIdentifier,
+            walletIdentifier,
+            UsageType: SOURCE_TO_USAGE_TYPE[selectedSource] || 'Google',
+            UsageQty: 1,
+          }),
+        })
+
+        if (!usageResponse.ok) {
+          throw new Error(`Update_Usage failed (${usageResponse.status})`)
+        }
+
+        const usagePayload = await usageResponse.json()
+        const usageFailed = usagePayload?.Code === 500 || String(usagePayload?.Status || '').toLowerCase() === 'failure'
+        if (usageFailed) {
+          throw new Error(usagePayload?.Reason || 'Update_Usage failed')
+        }
+
+        localStorage.setItem('usage_details_response', JSON.stringify(usagePayload))
+        localStorage.setItem('usage_details', JSON.stringify(usagePayload?.UsageDetails || {}))
+        localStorage.setItem('usage_details_org_identifier', orgIdentifier)
+        localStorage.setItem('usage_details_wallet_identifier', walletIdentifier)
+      } catch (usageError) {
+        localStorage.setItem('usage_details_error', usageError instanceof Error ? usageError.message : 'Update_Usage failed')
+      }
     } catch (requestError) {
       setLeads([])
       setTotalLeads(0)
@@ -144,19 +208,19 @@ function LeadSearchPage({ onNavigate }) {
 
           <div className="grid flex-1 gap-5 p-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
             <main className="space-y-4">
-              <PlatformTargets selectedSource={selectedSource} onSelectSource={handleSelectSource} />
               <AdvancedFilteringCard
-                emailCategory={emailCategory}
-                onEmailCategoryChange={setEmailCategory}
-                emailTypes={emailTypes}
-                onToggleEmailType={handleToggleEmailType}
-              />
-              <LeadSearchHero
+                platforms={platformTargets}
+                selectedSource={selectedSource}
+                onSelectSource={handleSelectSource}
                 query={query}
                 onQueryChange={setQuery}
-                selectedSource={selectedSource}
                 onSearch={handleSearch}
                 loading={loading}
+                emailCategory={emailCategory}
+                onEmailCategoryChange={handleEmailCategoryChange}
+                emailTypes={emailTypes}
+                emailTypeOptions={EMAIL_TYPES_BY_CATEGORY[emailCategory] || []}
+                onToggleEmailType={handleToggleEmailType}
               />
               <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
