@@ -22,6 +22,19 @@ const SOURCE_TO_USAGE_TYPE = {
   facebook: 'Facebook',
   instagram: 'Instagram',
   linkedin: 'LinkedIn',
+  emailenrichment: 'EmailEnrichment',
+  email_enrichment: 'EmailEnrichment',
+  email: 'EmailEnrichment',
+  fb: 'Facebook',
+}
+
+const resolveUsageTypeFromPayload = (payload, fallbackSource) => {
+  const payloadSource = payload?.source || payload?.Source
+  const normalizedSource = String(payloadSource || fallbackSource || '')
+    .trim()
+    .toLowerCase()
+
+  return SOURCE_TO_USAGE_TYPE[normalizedSource] || 'Google'
 }
 
 function LeadSearchPage({ onNavigate }) {
@@ -133,6 +146,8 @@ function LeadSearchPage({ onNavigate }) {
       setCurrentPage(1)
 
       try {
+        const usageType = resolveUsageTypeFromPayload(payload, selectedSource)
+
         const usageResponse = await fetch(`${apiBaseUrl}/api/Org/v1/Update_Usage`, {
           method: 'POST',
           headers: {
@@ -143,7 +158,7 @@ function LeadSearchPage({ onNavigate }) {
           body: JSON.stringify({
             orgIdentifier,
             walletIdentifier,
-            UsageType: SOURCE_TO_USAGE_TYPE[selectedSource] || 'Google',
+            UsageType: usageType,
             UsageQty: 1,
           }),
         })

@@ -2,7 +2,6 @@ export const navigationItems = [
   { id: 'dashboard', label: 'Dashboard', icon: 'grid', active: true },
   { id: 'search', label: 'Lead Search', icon: 'search', active: false },
   { id: 'crm', label: 'CRM Hub', icon: 'users', active: false },
-  { id: 'analytics', label: 'Analytics', icon: 'chart', active: false },
   { id: 'settings', label: 'Settings', icon: 'settings', active: false },
 ]
 

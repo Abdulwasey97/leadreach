@@ -6,11 +6,33 @@ import RightRail from '../components/layout/RightRail'
 import Sidebar from '../components/layout/Sidebar'
 import TopNavbar from '../components/layout/TopNavbar'
 
+function safeParseJson(value) {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return null
+  }
+}
+
+function getOrgWalletFromStorage() {
+  const orgPayload = safeParseJson(localStorage.getItem('organization_details_response') || '{}')
+  return orgPayload?.OrgDetails?.Org_Wallet || orgPayload?.OrganizationDetails?.Org_Wallet || null
+}
+
 function DashboardPage({ onNavigate }) {
-  const [usageDetails, setUsageDetails] = useState(() => JSON.parse(localStorage.getItem('usage_details') || 'null'))
+  const [usageDetails, setUsageDetails] = useState(() => getOrgWalletFromStorage())
 
   useEffect(() => {
-    setUsageDetails(JSON.parse(localStorage.getItem('usage_details') || 'null'))
+    const updateUsageFromOrgWallet = () => {
+      setUsageDetails(getOrgWalletFromStorage())
+    }
+
+    updateUsageFromOrgWallet()
+    window.addEventListener('organization-details-updated', updateUsageFromOrgWallet)
+
+    return () => {
+      window.removeEventListener('organization-details-updated', updateUsageFromOrgWallet)
+    }
   }, [])
 
   return (
@@ -28,7 +50,7 @@ function DashboardPage({ onNavigate }) {
               </header>
 
               <StatsGrid usageDetails={usageDetails} />
-              <LeadAccumulationCard />
+              <LeadAccumulationCard usageDetails={usageDetails} />
             </main>
 
             <RightRail usageDetails={usageDetails} />
