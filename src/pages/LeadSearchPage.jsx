@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import AdvancedFilteringCard from '../components/leadSearch/AdvancedFilteringCard'
 import LeadSearchRightRail from '../components/leadSearch/LeadSearchRightRail'
 import Sidebar from '../components/layout/Sidebar'
@@ -37,6 +37,62 @@ const resolveUsageTypeFromPayload = (payload, fallbackSource) => {
   return SOURCE_TO_USAGE_TYPE[normalizedSource] || 'Google'
 }
 
+const PLATFORM_USAGE_CONFIG = {
+  google: {
+    enabledKey: 'IsGoogleSearchEnabled',
+    totalKey: 'TotalGoogleSearchLimit',
+    utilizedKey: 'GoogleSearchLimitUtilized',
+  },
+  facebook: {
+    enabledKey: 'IsFbSearchEnabled',
+    totalKey: 'TotalFbSearchLimit',
+    utilizedKey: 'FbSearchLimitUtilized',
+  },
+  instagram: {
+    enabledKey: 'IsInstaSearchEnabled',
+    totalKey: 'TotalInstaSearchLimit',
+    utilizedKey: 'InstaSearchLimitUtilized',
+  },
+  linkedin: {
+    enabledKey: 'IsLinkedinSearchEnabled',
+    totalKey: 'TotalLinkedinSearchLimit',
+    utilizedKey: 'LinkedinSearchLimitUtilized',
+  },
+}
+
+const USAGE_TYPE_TO_PLATFORM = {
+  Google: 'google',
+  Facebook: 'facebook',
+  Instagram: 'instagram',
+  LinkedIn: 'linkedin',
+}
+
+const safeParseJson = (value) => {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return null
+  }
+}
+
+const getOrgWalletFromStorage = () => {
+  const orgPayload = safeParseJson(localStorage.getItem('organization_details_response') || '{}')
+  return orgPayload?.OrgDetails?.Org_Wallet || orgPayload?.OrganizationDetails?.Org_Wallet || null
+}
+
+const isPlatformAvailable = (platformId, wallet) => {
+  const config = PLATFORM_USAGE_CONFIG[platformId]
+  if (!config || !wallet) {
+    return true
+  }
+
+  const isEnabled = wallet?.[config.enabledKey] !== false
+  const total = Number(wallet?.[config.totalKey] || 0)
+  const utilized = Number(wallet?.[config.utilizedKey] || 0)
+
+  return isEnabled && utilized < total
+}
+
 function LeadSearchPage({ onNavigate }) {
   const PAGE_SIZE = 10
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://leadreach.api-pct.com'
@@ -50,6 +106,7 @@ function LeadSearchPage({ onNavigate }) {
   const [leads, setLeads] = useState([])
   const [totalLeads, setTotalLeads] = useState(0)
   const [selectedRows, setSelectedRows] = useState({})
+  const [orgWallet, setOrgWallet] = useState(() => getOrgWalletFromStorage())
 
   const selectedCount = useMemo(
     () => Object.values(selectedRows).filter(Boolean).length,
@@ -67,6 +124,36 @@ function LeadSearchPage({ onNavigate }) {
     [currentPage, paginatedLeads],
   )
   const allRowsSelected = currentPageRowKeys.length > 0 && currentPageRowKeys.every((rowKey) => Boolean(selectedRows[rowKey]))
+  const availablePlatformIds = useMemo(
+    () => platformTargets.filter((platform) => isPlatformAvailable(platform.id, orgWallet)).map((platform) => platform.id),
+    [orgWallet],
+  )
+  const blockedPlatformIds = useMemo(
+    () => platformTargets.filter((platform) => !isPlatformAvailable(platform.id, orgWallet)).map((platform) => platform.id),
+    [orgWallet],
+  )
+
+  useEffect(() => {
+    const refreshWallet = () => {
+      setOrgWallet(getOrgWalletFromStorage())
+    }
+
+    refreshWallet()
+    window.addEventListener('organization-details-updated', refreshWallet)
+    return () => {
+      window.removeEventListener('organization-details-updated', refreshWallet)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (availablePlatformIds.length === 0) {
+      return
+    }
+
+    if (!availablePlatformIds.includes(selectedSource)) {
+      setSelectedSource(availablePlatformIds[0])
+    }
+  }, [availablePlatformIds, selectedSource])
 
   const handleToggleEmailType = (type) => {
     setEmailTypes((prev) => {
@@ -83,6 +170,12 @@ function LeadSearchPage({ onNavigate }) {
   }
 
   const handleSelectSource = (source) => {
+    if (!isPlatformAvailable(source, orgWallet)) {
+      setError('This platform limit is reached. Please choose another platform.')
+      return
+    }
+
+    setError('')
     setSelectedSource(source)
   }
 
@@ -99,6 +192,11 @@ function LeadSearchPage({ onNavigate }) {
 
     if (!selectedSource) {
       setError('Please select a source platform.')
+      return
+    }
+
+    if (!isPlatformAvailable(selectedSource, orgWallet)) {
+      setError('Selected platform is not available because its quota is consumed.')
       return
     }
 
@@ -147,6 +245,11 @@ function LeadSearchPage({ onNavigate }) {
 
       try {
         const usageType = resolveUsageTypeFromPayload(payload, selectedSource)
+        const usagePlatform = USAGE_TYPE_TO_PLATFORM[usageType]
+
+        if (usagePlatform && !isPlatformAvailable(usagePlatform, orgWallet)) {
+          throw new Error(`${usageType} quota is exhausted. Update_Usage was skipped.`)
+        }
 
         const usageResponse = await fetch(`${apiBaseUrl}/api/Org/v1/Update_Usage`, {
           method: 'POST',
@@ -227,6 +330,7 @@ function LeadSearchPage({ onNavigate }) {
                 platforms={platformTargets}
                 selectedSource={selectedSource}
                 onSelectSource={handleSelectSource}
+                blockedPlatformIds={blockedPlatformIds}
                 query={query}
                 onQueryChange={setQuery}
                 onSearch={handleSearch}

@@ -50,6 +50,7 @@ function AdvancedFilteringCard({
   platforms,
   selectedSource,
   onSelectSource,
+  blockedPlatformIds = [],
   query,
   onQueryChange,
   onSearch,
@@ -90,20 +91,30 @@ function AdvancedFilteringCard({
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
             {platforms.map((platform) => {
               const isSelected = selectedSource === platform.id
+              const isBlocked = blockedPlatformIds.includes(platform.id)
               return (
                 <article
                   key={platform.id}
                   onClick={() => onSelectSource(platform.id)}
                   className={`cursor-pointer rounded-xl border p-3.5 transition ${
-                    isSelected ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                    isSelected
+                      ? 'border-sky-300 bg-sky-50'
+                      : isBlocked
+                        ? 'border-rose-200 bg-rose-50'
+                        : 'border-slate-200 bg-slate-50 hover:border-slate-300'
                   }`}
                 >
                   <div
-                    className={`mb-2.5 inline-flex rounded-lg p-2.5 ${isSelected ? 'bg-slate-900 text-white' : 'bg-white text-sky-500'}`}
+                    className={`mb-2.5 inline-flex rounded-lg p-2.5 ${
+                      isSelected ? 'bg-slate-900 text-white' : isBlocked ? 'bg-rose-100 text-rose-600' : 'bg-white text-sky-500'
+                    }`}
                   >
                     <TargetIcon icon={platform.icon} />
                   </div>
                   <h4 className="text-lg font-semibold text-slate-800">{platform.name}</h4>
+                  {isBlocked ? (
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-rose-600">Limit Reached</p>
+                  ) : null}
                 </article>
               )
             })}
