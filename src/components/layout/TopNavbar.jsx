@@ -1,14 +1,26 @@
 import { topNavItems } from '../../data/dashboardData'
 
-function TopNavbar({ showSupport = false, showAvatar = false }) {
+function TopNavbar({
+  showSupport = false,
+  showAvatar = false,
+  showUpgrade = true,
+  navItems = topNavItems,
+  activeNavItem = '',
+  onNavItemClick,
+}) {
   return (
     <header className="flex items-center gap-6 border-b border-slate-200 bg-white px-8 py-4">
       <nav className="ml-auto hidden items-center gap-6 md:flex">
-        {topNavItems.map((item) => (
+        {navItems.map((item) => (
           <button
             key={item}
             type="button"
-            className="cursor-pointer rounded-md px-1.5 py-1 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+            onClick={() => onNavItemClick?.(item)}
+            className={`cursor-pointer rounded-md px-1.5 py-1 text-sm font-medium transition ${
+              activeNavItem === item
+                ? 'bg-slate-100 text-slate-800'
+                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+            }`}
           >
             {item}
           </button>
@@ -37,12 +49,14 @@ function TopNavbar({ showSupport = false, showAvatar = false }) {
         </div>
       )}
 
-      <button
-        type="button"
-        className="cursor-pointer rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-600"
-      >
-        Upgrade Plan
-      </button>
+      {showUpgrade ? (
+        <button
+          type="button"
+          className="cursor-pointer rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-600"
+        >
+          Upgrade Plan
+        </button>
+      ) : null}
 
       {showAvatar && (
         <span
