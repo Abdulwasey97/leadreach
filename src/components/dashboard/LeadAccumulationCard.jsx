@@ -42,22 +42,21 @@ function LeadAccumulationCard({ usageDetails }) {
   const usageSummary = buildUsageSummary(usageDetails)
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div>
-        <div>
-          <h2 className="text-3xl font-semibold text-slate-800">Lead Accumulation</h2>
-        </div>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Usage trend</p>
+        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Lead Accumulation</h2>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-4">
         <LeadChart usageDetails={usageDetails} />
       </div>
 
-      <dl className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="mt-4 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
         {usageSummary.map((item) => (
-          <div key={item.id}>
-            <dt className="text-xs uppercase tracking-[0.12em] text-slate-400">{item.label}</dt>
-            <dd className="mt-1 text-3xl font-semibold text-slate-800">{item.value}</dd>
+          <div key={item.id} className="min-w-0">
+            <dt className="text-[10px] uppercase tracking-[0.14em] text-slate-400">{item.label}</dt>
+            <dd className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">{item.value}</dd>
           </div>
         ))}
       </dl>

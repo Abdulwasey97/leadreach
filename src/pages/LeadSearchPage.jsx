@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import AdvancedFilteringCard from '../components/leadSearch/AdvancedFilteringCard'
-import LeadSearchRightRail from '../components/leadSearch/LeadSearchRightRail'
 import Sidebar from '../components/layout/Sidebar'
 import TopNavbar from '../components/layout/TopNavbar'
 import { platformTargets } from '../data/leadSearchData'
@@ -65,6 +64,15 @@ const USAGE_TYPE_TO_PLATFORM = {
   Facebook: 'facebook',
   Instagram: 'instagram',
   LinkedIn: 'linkedin',
+}
+
+function SortIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="size-3.5 text-slate-500" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="m7 6 3-3 3 3" />
+      <path d="m13 14-3 3-3-3" />
+    </svg>
+  )
 }
 
 function getLeadIdentifier(lead) {
@@ -516,8 +524,8 @@ function LeadSearchPage() {
         <div className="flex min-w-0 flex-1 flex-col">
           <TopNavbar searchPlaceholder="Search leads by industry or role..." showSupport />
 
-          <div className="grid flex-1 gap-5 p-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-            <main className="space-y-4">
+          <div className="flex flex-1 p-5">
+            <main className="w-full min-w-0 space-y-4">
               <AdvancedFilteringCard
                 platforms={platformTargets}
                 selectedSource={selectedSource}
@@ -533,10 +541,10 @@ function LeadSearchPage() {
                 emailTypeOptions={EMAIL_TYPES_BY_CATEGORY[emailCategory] || []}
                 onToggleEmailType={handleToggleEmailType}
               />
-              <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-slate-800">Search Results</h3>
+                    <h3 className="text-lg font-semibold text-slate-900">Search Results</h3>
                     <p className="text-sm text-slate-500">
                       {loading ? 'Fetching results from Zoho CRM...' : `${totalLeads} leads found`}
                     </p>
@@ -551,38 +559,36 @@ function LeadSearchPage() {
                 ) : null}
 
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-100">
-                    <thead className="bg-slate-50">
-                      <tr>
-                        <th className="px-5 py-3 text-left">
-                          <input
-                            type="checkbox"
-                            checked={allRowsSelected}
-                            onChange={handleSelectAll}
-                            className="size-4 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
-                          />
+                  <table className="min-w-[1120px] w-full border-separate border-spacing-0">
+                    <thead>
+                      <tr className="bg-slate-100">
+                        <th className="w-12 border-b border-slate-200 px-4 py-3 text-left">
+                          <button
+                            type="button"
+                            onClick={handleSelectAll}
+                            className={`inline-flex size-4 items-center justify-center rounded-full border transition ${
+                              allRowsSelected
+                                ? 'border-slate-900 bg-slate-900 text-white'
+                                : 'border-slate-300 bg-white text-transparent hover:border-cyan-500'
+                            }`}
+                            aria-label="Select all visible rows"
+                          >
+                            <svg viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="m4 8 2.4 2.4L12 5" />
+                            </svg>
+                          </button>
                         </th>
-                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Name
-                        </th>
-                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Phone
-                        </th>
-                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Website
-                        </th>
-                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Email
-                        </th>
-                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Address
-                        </th>
-                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Rating
-                        </th>
+                        {['Name', 'Phone', 'Website', 'Email', 'Address', 'Rating'].map((heading) => (
+                          <th key={heading} className="border-b border-slate-200 px-4 py-3 text-left text-xs font-medium text-slate-900">
+                            <span className="inline-flex items-center gap-2">
+                              {heading}
+                              {['Name', 'Rating'].includes(heading) ? <SortIcon /> : null}
+                            </span>
+                          </th>
+                        ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
+                    <tbody className="bg-white">
                       {paginatedLeads.map((lead, index) => {
                         const absoluteIndex = (currentPage - 1) * PAGE_SIZE + index
                         const leadIdentifier = getLeadIdentifier(lead)
@@ -592,27 +598,37 @@ function LeadSearchPage() {
                         const isSelected = Boolean(selectedRows[rowKey])
 
                         return (
-                          <tr key={rowKey} className={isSelected ? 'bg-cyan-50/70' : ''}>
-                            <td className="px-5 py-3">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => handleRowSelection(rowKey)}
-                                className="size-4 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
-                              />
+                          <tr key={rowKey} className={`group transition ${isSelected ? 'bg-cyan-50/50' : 'hover:bg-slate-50'}`}>
+                            <td className="border-b border-slate-100 px-4 py-4">
+                              <button
+                                type="button"
+                                onClick={() => handleRowSelection(rowKey)}
+                                className={`inline-flex size-4 items-center justify-center rounded-full border transition ${
+                                  isSelected
+                                    ? 'border-slate-900 bg-slate-900 text-white'
+                                    : 'border-slate-300 bg-white text-transparent hover:border-cyan-500'
+                                }`}
+                                aria-label={`Select ${lead.name || 'lead'}`}
+                              >
+                                <svg viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="m4 8 2.4 2.4L12 5" />
+                                </svg>
+                              </button>
                             </td>
-                            <td className="px-5 py-3 text-sm text-slate-700">{lead.name || '-'}</td>
-                            <td className="px-5 py-3 text-sm text-slate-700">{lead.phone || '-'}</td>
-                            <td className="px-5 py-3 text-sm text-cyan-700">
+                            <td className="border-b border-slate-100 px-4 py-4">
+                              <p className="max-w-[300px] text-sm font-semibold text-slate-900">{lead.name || '-'}</p>
+                            </td>
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">{lead.phone || '-'}</td>
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm">
                               {lead.website ? (
-                                <a href={lead.website} target="_blank" rel="noreferrer" className="hover:underline">
+                                <a href={lead.website} target="_blank" rel="noreferrer" className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 font-medium text-cyan-700 transition hover:border-cyan-200 hover:bg-cyan-50">
                                   Visit Website
                                 </a>
                               ) : (
-                                '-'
+                                <span className="text-slate-400">-</span>
                               )}
                             </td>
-                            <td className="px-5 py-3 text-sm text-slate-700">
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
                               <div className="flex flex-wrap items-center gap-2">
                                 {enrichEmailsByRow[rowKey]?.length ? (
                                   <div
@@ -638,7 +654,7 @@ function LeadSearchPage() {
                                     aria-label="Enrich email"
                                     disabled={Boolean(enrichLoadingByRow[rowKey])}
                                     onClick={() => handleEnrichEmail(lead, rowKey)}
-                                    className="inline-flex cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-slate-50 p-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="inline-flex cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 transition hover:bg-cyan-50 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
                                   >
                                     {enrichLoadingByRow[rowKey] ? (
                                       <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -659,16 +675,22 @@ function LeadSearchPage() {
                                 ) : null}
                               </div>
                             </td>
-                            <td className="px-5 py-3 text-sm text-slate-600">{lead.address || '-'}</td>
-                            <td className="px-5 py-3 text-sm text-slate-700">
-                              {lead.rating ? `${lead.rating} (${lead.reviews || 0} reviews)` : '-'}
+                            <td className="max-w-md border-b border-slate-100 px-4 py-4 text-sm leading-6 text-slate-600">{lead.address || '-'}</td>
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
+                              {lead.rating ? (
+                                <span className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 font-medium">
+                                  {lead.rating} ({lead.reviews || 0} reviews)
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">-</span>
+                              )}
                             </td>
                           </tr>
                         )
                       })}
                       {!loading && leads.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-5 py-8 text-center text-sm text-slate-500">
+                          <td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-500">
                             Start a search to load leads from Zoho CRM.
                           </td>
                         </tr>
@@ -704,7 +726,6 @@ function LeadSearchPage() {
               </section>
             </main>
 
-            <LeadSearchRightRail />
           </div>
         </div>
       </div>

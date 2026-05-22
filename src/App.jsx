@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import CrmHubPage from './pages/CrmHubPage'
 import DashboardPage from './pages/DashboardPage'
 import LeadSearchHistoryPage from './pages/LeadSearchHistoryPage'
@@ -11,6 +11,11 @@ import { ROUTES } from './routes'
 function hasConnectedIntegration(payload) {
   const integrations = payload?.IntegrationList
   return Array.isArray(integrations) && integrations.length > 0
+}
+
+function isKnownAppPath(pathname) {
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/'
+  return normalizedPath === '/' || Object.values(ROUTES).includes(normalizedPath)
 }
 
 function BootstrapLoader() {
@@ -208,10 +213,13 @@ function AppToasts({ successToast, errorToast }) {
 }
 
 function App() {
+  const location = useLocation()
   const navigate = useNavigate()
+  const isKnownRoute = isKnownAppPath(location.pathname)
+  const hasBootstrappedRef = useRef(false)
   const [errorToast, setErrorToast] = useState('')
   const [successToast, setSuccessToast] = useState('')
-  const [isBootstrapping, setIsBootstrapping] = useState(true)
+  const [isBootstrapping, setIsBootstrapping] = useState(isKnownRoute)
 
   const showErrorToast = (message) => {
     setErrorToast(message)
@@ -251,6 +259,16 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (!isKnownRoute) {
+      return
+    }
+
+    if (hasBootstrappedRef.current) {
+      return
+    }
+
+    hasBootstrappedRef.current = true
+
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://leadreach.api-pct.com'
 
     const bootstrapOrgAndUser = async () => {
@@ -366,9 +384,13 @@ function App() {
     }
 
     bootstrapOrgAndUser()
-  }, [])
+  }, [isKnownRoute])
 
   useEffect(() => {
+    if (!isKnownRoute) {
+      return
+    }
+
     const params = new URLSearchParams(window.location.search)
     const grantCode = params.get('code')
 
@@ -463,9 +485,9 @@ function App() {
     }
 
     finalizeOAuth()
-  }, [navigate])
+  }, [isKnownRoute, navigate])
 
-  if (isBootstrapping) {
+  if (isKnownRoute && isBootstrapping) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
         <div className="text-center">

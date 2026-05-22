@@ -16,21 +16,21 @@ function buildUsageStats(usageDetails) {
       title: 'Google Search Used',
       value: `${usageDetails.GoogleSearchLimitUtilized || 0}`,
       insight: `${googleRemaining} remaining`,
-      highlighted: false,
+      limit: usageDetails.TotalGoogleSearchLimit || 0,
     },
     {
       id: 'linkedin-usage',
       title: 'LinkedIn Used',
       value: `${usageDetails.LinkedinSearchLimitUtilized || 0}`,
       insight: `${linkedinRemaining} remaining`,
-      highlighted: false,
+      limit: usageDetails.TotalLinkedinSearchLimit || 0,
     },
     {
       id: 'email-usage',
       title: 'Email Enrichment Used',
       value: `${usageDetails.EmailEnrichmentUtilized || 0}`,
       insight: `${emailRemaining} remaining`,
-      highlighted: true,
+      limit: usageDetails.TotalEmailEnrichment || 0,
     },
   ]
 }
@@ -46,7 +46,7 @@ function StatsGrid({ usageDetails }) {
           title={stat.title}
           value={stat.value}
           insight={stat.insight}
-          highlighted={stat.highlighted}
+          limit={stat.limit}
         />
       ))}
     </section>

@@ -3,10 +3,9 @@ import QuotaList from '../dashboard/QuotaList'
 
 function RightRail({ usageDetails }) {
   return (
-    <aside className="space-y-4">
+    <aside className="flex h-full flex-col">
       <QuotaList usageDetails={usageDetails} />
       <ActivityList />
-     
     </aside>
   )
 }
