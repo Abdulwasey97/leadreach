@@ -7,7 +7,7 @@ function IntegrationIcon({ icon }) {
 
   if (icon === 'hub') {
     return (
-      <svg viewBox="0 0 24 24" className="size-5 text-orange-500" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <svg viewBox="0 0 24 24" className="size-5 text-cyan-600" fill="none" stroke="currentColor" strokeWidth="1.8">
         <circle cx="12" cy="12" r="2.5" />
         <path d="M12 4v3" />
         <path d="M12 17v3" />
@@ -18,7 +18,7 @@ function IntegrationIcon({ icon }) {
   }
 
   return (
-    <svg viewBox="0 0 24 24" className="size-5 text-blue-500" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg viewBox="0 0 24 24" className="size-5 text-cyan-600" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M6 16a4 4 0 1 1 .5-7.98A5 5 0 0 1 19 10a3.5 3.5 0 0 1-1 6.86H6Z" />
     </svg>
   )
@@ -168,26 +168,23 @@ function IntegrationCard({ integration }) {
 
   return (
     <article
-      className={`relative overflow-hidden rounded-3xl border-2 border-cyan-200/90 bg-gradient-to-br from-white via-cyan-50/60 to-indigo-50 p-6 shadow-[0_18px_40px_-24px_rgba(14,116,144,0.45)] ${
-        isComingSoon ? 'opacity-85 blur-[0.6px]' : ''
+      className={`relative overflow-hidden rounded-lg border border-cyan-200 bg-cyan-50/50 p-5 shadow-sm ${
+        isComingSoon ? 'opacity-70' : ''
       }`}
     >
-      <div className="pointer-events-none absolute -right-14 -top-20 h-44 w-44 rounded-full bg-cyan-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-indigo-200/30 blur-3xl" />
-
       <div className="relative flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <span className="inline-flex size-10 items-center justify-center rounded-xl bg-white/90 shadow-sm ring-1 ring-cyan-100">
+          <span className="inline-flex size-10 items-center justify-center rounded-lg bg-white text-cyan-600 shadow-sm ring-1 ring-cyan-100">
             <IntegrationIcon icon={integration.icon} />
           </span>
           <div>
-            <h4 className="text-xl font-bold tracking-tight text-slate-800">{integration.name}</h4>
+            <h4 className="text-xl font-bold tracking-tight text-slate-900">{integration.name}</h4>
             <p className="mt-1 text-sm text-slate-500">{integration.subtitle}</p>
           </div>
         </div>
         <span
           className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
-            isConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+            isConnected ? 'bg-cyan-100 text-cyan-700 ring-1 ring-cyan-200' : 'bg-slate-100 text-slate-500 ring-1 ring-slate-200'
           }`}
         >
           {resolvedStatus}
@@ -217,8 +214,8 @@ function IntegrationCard({ integration }) {
               ? 'bg-slate-400'
               : isZohoConnected
               ? showDisconnectAction
-                ? 'bg-red-600 shadow-md shadow-red-600/25 hover:-translate-y-0.5 hover:bg-red-700'
-                : 'bg-emerald-600 shadow-md shadow-emerald-600/25 hover:-translate-y-0.5 hover:bg-emerald-700'
+                ? 'bg-slate-900 shadow-md shadow-slate-900/20 hover:-translate-y-0.5 hover:bg-slate-800'
+                : 'bg-cyan-600 shadow-md shadow-cyan-600/25 hover:-translate-y-0.5 hover:bg-cyan-700'
               : 'bg-cyan-600 shadow-md shadow-cyan-600/25 hover:-translate-y-0.5 hover:bg-cyan-700'
           } ${isConnecting || isDisconnecting ? 'opacity-70' : ''}`}
         >
