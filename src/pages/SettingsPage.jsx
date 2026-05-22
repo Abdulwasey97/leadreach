@@ -85,13 +85,13 @@ function MappingIcon({ type }) {
   )
 }
 
-function SettingsPage({ onNavigate }) {
+function SettingsPage() {
   const [activeSettingsTab, setActiveSettingsTab] = useState('Organization')
 
   return (
     <div className="min-h-screen bg-slate-100">
       <div className="mx-auto flex min-h-screen max-w-[1500px]">
-        <Sidebar activeItem="settings" onNavigate={onNavigate} />
+        <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <TopNavbar

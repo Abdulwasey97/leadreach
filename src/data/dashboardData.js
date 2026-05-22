@@ -1,9 +1,4 @@
-export const navigationItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'grid', active: true },
-  { id: 'search', label: 'Lead Search', icon: 'search', active: false },
-  { id: 'crm', label: 'CRM Hub', icon: 'users', active: false },
-  { id: 'settings', label: 'Settings', icon: 'settings', active: false },
-]
+export { navigationItems } from '../routes'
 
 export const topNavItems = ['Platform Targeting', 'Email Filters', 'Export']
 

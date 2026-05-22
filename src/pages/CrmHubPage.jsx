@@ -4,11 +4,11 @@ import CrmHubRightRail from '../components/crmHub/CrmHubRightRail'
 import Sidebar from '../components/layout/Sidebar'
 import TopNavbar from '../components/layout/TopNavbar'
 
-function CrmHubPage({ onNavigate }) {
+function CrmHubPage() {
   return (
     <div className="min-h-screen bg-slate-100">
       <div className="mx-auto flex min-h-screen max-w-[1500px]">
-        <Sidebar activeItem="crm" onNavigate={onNavigate} />
+        <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <TopNavbar searchPlaceholder="Filter CRM flows..." showSupport showAvatar />

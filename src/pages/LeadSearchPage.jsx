@@ -67,6 +67,69 @@ const USAGE_TYPE_TO_PLATFORM = {
   LinkedIn: 'linkedin',
 }
 
+function getLeadIdentifier(lead) {
+  const value =
+    lead?.leadIdentifier ??
+    lead?.LeadIdentifier ??
+    lead?.leadId ??
+    lead?.LeadId ??
+    lead?.placeId ??
+    lead?.place_id
+
+  if (value != null && String(value).trim() !== '') {
+    return String(value).trim()
+  }
+
+  return ''
+}
+
+function normalizeLookupLead(lead) {
+  const leadIdentifier = getLeadIdentifier(lead)
+  return leadIdentifier ? { ...lead, leadIdentifier } : lead
+}
+
+function getLeadDisplayName(lead) {
+  const first = String(lead?.firstName || '').trim()
+  const last = String(lead?.lastName || '').trim()
+  if (first && last) {
+    return `${first} ${last}`
+  }
+  if (lead?.name != null && String(lead.name).trim() !== '') {
+    return String(lead.name).trim()
+  }
+  return first || last || '-'
+}
+
+function getLeadWebsite(lead) {
+  const w = lead?.website ?? lead?.Website ?? lead?.url ?? ''
+  return String(w || '').trim()
+}
+
+function pickEnrichedEmailsFromPayload(payload) {
+  const captured = payload?.CapturedEmails ?? payload?.capturedEmails
+  if (Array.isArray(captured) && captured.length > 0) {
+    return captured.map((e) => String(e).trim()).filter(Boolean)
+  }
+
+  const direct =
+    payload?.emailAddress ??
+    payload?.EmailAddress ??
+    payload?.email ??
+    payload?.Email ??
+    payload?.enrichedEmail ??
+    null
+  if (direct) {
+    return [String(direct)]
+  }
+
+  const list = payload?.EnrichedEmails ?? payload?.enrichedEmails
+  if (Array.isArray(list) && list[0]?.emailAddress) {
+    return list.map((item) => String(item?.emailAddress || '').trim()).filter(Boolean)
+  }
+
+  return []
+}
+
 const safeParseJson = (value) => {
   try {
     return JSON.parse(value)
@@ -78,6 +141,50 @@ const safeParseJson = (value) => {
 const getOrgWalletFromStorage = () => {
   const orgPayload = safeParseJson(localStorage.getItem('organization_details_response') || '{}')
   return orgPayload?.OrgDetails?.Org_Wallet || orgPayload?.OrganizationDetails?.Org_Wallet || null
+}
+
+const getWalletIdentifierFromStorage = () => {
+  const orgPayload = safeParseJson(localStorage.getItem('organization_details_response') || '{}')
+  return (
+    orgPayload?.OrganizationDetails?.walletIdentifier ||
+    orgPayload?.OrgDetails?.walletIdentifier ||
+    localStorage.getItem('usage_details_wallet_identifier') ||
+    'Wal775AAC24994C'
+  )
+}
+
+async function postUpdateUsage(apiBaseUrl, { orgIdentifier, walletIdentifier, usageType }) {
+  const usageResponse = await fetch(`${apiBaseUrl}/api/Org/v1/Update_Usage`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      DataCenter: 'crm.zoho.com',
+      referer: 'https://localhost:44352',
+    },
+    body: JSON.stringify({
+      orgIdentifier,
+      walletIdentifier,
+      UsageType: usageType,
+      UsageQty: 1,
+    }),
+  })
+
+  if (!usageResponse.ok) {
+    throw new Error(`Update_Usage failed (${usageResponse.status})`)
+  }
+
+  const usagePayload = await usageResponse.json()
+  const usageFailed = usagePayload?.Code === 500 || String(usagePayload?.Status || '').toLowerCase() === 'failure'
+  if (usageFailed) {
+    throw new Error(usagePayload?.Reason || 'Update_Usage failed')
+  }
+
+  localStorage.setItem('usage_details_response', JSON.stringify(usagePayload))
+  localStorage.setItem('usage_details', JSON.stringify(usagePayload?.UsageDetails || {}))
+  localStorage.setItem('usage_details_org_identifier', orgIdentifier)
+  localStorage.setItem('usage_details_wallet_identifier', walletIdentifier)
+
+  return usagePayload
 }
 
 const isPlatformAvailable = (platformId, wallet) => {
@@ -93,7 +200,7 @@ const isPlatformAvailable = (platformId, wallet) => {
   return isEnabled && utilized < total
 }
 
-function LeadSearchPage({ onNavigate }) {
+function LeadSearchPage() {
   const PAGE_SIZE = 10
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://leadreach.api-pct.com'
   const leadLookupUserEmail = import.meta.env.VITE_LEAD_LOOKUP_USER_EMAIL || 'hassan.a@zenithinnovations.net'
@@ -106,6 +213,9 @@ function LeadSearchPage({ onNavigate }) {
   const [leads, setLeads] = useState([])
   const [totalLeads, setTotalLeads] = useState(0)
   const [selectedRows, setSelectedRows] = useState({})
+  const [enrichLoadingByRow, setEnrichLoadingByRow] = useState({})
+  const [enrichEmailsByRow, setEnrichEmailsByRow] = useState({})
+  const [enrichCompletedByRow, setEnrichCompletedByRow] = useState({})
   const [orgWallet, setOrgWallet] = useState(() => getOrgWalletFromStorage())
 
   const selectedCount = useMemo(
@@ -120,7 +230,12 @@ function LeadSearchPage({ onNavigate }) {
     return leads.slice(startIndex, startIndex + PAGE_SIZE)
   }, [currentPage, leads])
   const currentPageRowKeys = useMemo(
-    () => paginatedLeads.map((lead, index) => `${lead.name || lead.email || 'lead'}-${(currentPage - 1) * PAGE_SIZE + index}`),
+    () =>
+      paginatedLeads.map((lead, index) => {
+        const id = getLeadIdentifier(lead)
+        const label = lead.name || lead.email || 'lead'
+        return id ? `${id}-${label}` : `${label}-${(currentPage - 1) * PAGE_SIZE + index}`
+      }),
     [currentPage, paginatedLeads],
   )
   const allRowsSelected = currentPageRowKeys.length > 0 && currentPageRowKeys.every((rowKey) => Boolean(selectedRows[rowKey]))
@@ -151,7 +266,11 @@ function LeadSearchPage({ onNavigate }) {
     }
 
     if (!availablePlatformIds.includes(selectedSource)) {
-      setSelectedSource(availablePlatformIds[0])
+      const timeoutId = window.setTimeout(() => {
+        setSelectedSource(availablePlatformIds[0])
+      }, 0)
+
+      return () => window.clearTimeout(timeoutId)
     }
   }, [availablePlatformIds, selectedSource])
 
@@ -237,10 +356,14 @@ function LeadSearchPage({ onNavigate }) {
         throw new Error(payload?.Reason || 'Unable to fetch leads right now.')
       }
 
-      const list = Array.isArray(payload?.Leads) ? payload.Leads : Array.isArray(payload?.leads) ? payload.leads : []
+      const rawList = Array.isArray(payload?.Leads) ? payload.Leads : Array.isArray(payload?.leads) ? payload.leads : []
+      const list = rawList.map(normalizeLookupLead)
       setLeads(list)
       setTotalLeads(Number(payload?.TotalLeads ?? payload?.totalEmails) || list.length)
       setSelectedRows({})
+      setEnrichEmailsByRow({})
+      setEnrichCompletedByRow({})
+      setEnrichLoadingByRow({})
       setCurrentPage(1)
 
       try {
@@ -251,35 +374,7 @@ function LeadSearchPage({ onNavigate }) {
           throw new Error(`${usageType} quota is exhausted. Update_Usage was skipped.`)
         }
 
-        const usageResponse = await fetch(`${apiBaseUrl}/api/Org/v1/Update_Usage`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            DataCenter: 'crm.zoho.com',
-            referer: 'https://localhost:44352',
-          },
-          body: JSON.stringify({
-            orgIdentifier,
-            walletIdentifier,
-            UsageType: usageType,
-            UsageQty: 1,
-          }),
-        })
-
-        if (!usageResponse.ok) {
-          throw new Error(`Update_Usage failed (${usageResponse.status})`)
-        }
-
-        const usagePayload = await usageResponse.json()
-        const usageFailed = usagePayload?.Code === 500 || String(usagePayload?.Status || '').toLowerCase() === 'failure'
-        if (usageFailed) {
-          throw new Error(usagePayload?.Reason || 'Update_Usage failed')
-        }
-
-        localStorage.setItem('usage_details_response', JSON.stringify(usagePayload))
-        localStorage.setItem('usage_details', JSON.stringify(usagePayload?.UsageDetails || {}))
-        localStorage.setItem('usage_details_org_identifier', orgIdentifier)
-        localStorage.setItem('usage_details_wallet_identifier', walletIdentifier)
+        await postUpdateUsage(apiBaseUrl, { orgIdentifier, walletIdentifier, usageType })
       } catch (usageError) {
         localStorage.setItem('usage_details_error', usageError instanceof Error ? usageError.message : 'Update_Usage failed')
       }
@@ -287,6 +382,9 @@ function LeadSearchPage({ onNavigate }) {
       setLeads([])
       setTotalLeads(0)
       setSelectedRows({})
+      setEnrichEmailsByRow({})
+      setEnrichCompletedByRow({})
+      setEnrichLoadingByRow({})
       setCurrentPage(1)
       setError(requestError instanceof Error ? requestError.message : 'Failed to search leads.')
     } finally {
@@ -316,10 +414,104 @@ function LeadSearchPage({ onNavigate }) {
     }))
   }
 
+  const handleEnrichEmail = async (lead, rowKey) => {
+    const orgIdentifier = localStorage.getItem('organization_identifier') || 'ORG-2012'
+    const leadIdentifier = getLeadIdentifier(lead)
+    const leadName = getLeadDisplayName(lead)
+    const leadWebsite = getLeadWebsite(lead)
+    const leadSource = selectedSource
+
+    if (!leadIdentifier) {
+      window.dispatchEvent(
+        new CustomEvent('zoho-toast', {
+          detail: { type: 'error', message: 'This lead has no identifier; email enrichment cannot be requested.' },
+        }),
+      )
+      return
+    }
+    if (!leadWebsite) {
+      window.dispatchEvent(
+        new CustomEvent('zoho-toast', {
+          detail: { type: 'error', message: 'Add or select a lead with a website URL to enrich email.' },
+        }),
+      )
+      return
+    }
+
+    setEnrichLoadingByRow((prev) => ({ ...prev, [rowKey]: true }))
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/Leads/v1/Enrich_Email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orgIdentifier,
+          leadIdentifier,
+          leadName: leadName === '-' ? '' : leadName,
+          leadWebsite,
+          leadSource,
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({}))
+      const ok = response.ok && payload?.Code === 200 && String(payload?.Status || '').toLowerCase() === 'success'
+
+      if (!ok) {
+        const message = payload?.Reason || `Enrich email failed (${response.status})`
+        window.dispatchEvent(new CustomEvent('zoho-toast', { detail: { type: 'error', message } }))
+        return
+      }
+
+      const emails = pickEnrichedEmailsFromPayload(payload)
+      setEnrichCompletedByRow((prev) => ({ ...prev, [rowKey]: true }))
+      if (emails.length > 0) {
+        setEnrichEmailsByRow((prev) => ({ ...prev, [rowKey]: emails }))
+      }
+
+      window.dispatchEvent(
+        new CustomEvent('zoho-toast', {
+          detail: {
+            type: 'success',
+            message: payload?.Reason || 'Successfully captured lead emails.',
+          },
+        }),
+      )
+
+      try {
+        const walletIdentifier = getWalletIdentifierFromStorage()
+        await postUpdateUsage(apiBaseUrl, {
+          orgIdentifier,
+          walletIdentifier,
+          usageType: 'EmailEnrichment',
+        })
+        setOrgWallet(getOrgWalletFromStorage())
+        window.dispatchEvent(new Event('organization-details-updated'))
+      } catch (usageError) {
+        localStorage.setItem(
+          'usage_details_error',
+          usageError instanceof Error ? usageError.message : 'Update_Usage failed',
+        )
+      }
+    } catch (err) {
+      window.dispatchEvent(
+        new CustomEvent('zoho-toast', {
+          detail: { type: 'error', message: err instanceof Error ? err.message : 'Email enrichment request failed.' },
+        }),
+      )
+    } finally {
+      setEnrichLoadingByRow((prev) => {
+        const next = { ...prev }
+        delete next[rowKey]
+        return next
+      })
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-100">
       <div className="mx-auto flex min-h-screen max-w-[1500px]">
-        <Sidebar activeItem="search" onNavigate={onNavigate} />
+        <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <TopNavbar searchPlaceholder="Search leads by industry or role..." showSupport />
@@ -380,6 +572,9 @@ function LeadSearchPage({ onNavigate }) {
                           Website
                         </th>
                         <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Email
+                        </th>
+                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                           Address
                         </th>
                         <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -390,7 +585,10 @@ function LeadSearchPage({ onNavigate }) {
                     <tbody className="divide-y divide-slate-100 bg-white">
                       {paginatedLeads.map((lead, index) => {
                         const absoluteIndex = (currentPage - 1) * PAGE_SIZE + index
-                        const rowKey = `${lead.name || lead.email || 'lead'}-${absoluteIndex}`
+                        const leadIdentifier = getLeadIdentifier(lead)
+                        const rowKey = leadIdentifier
+                          ? `${leadIdentifier}-${lead.name || lead.email || 'lead'}`
+                          : `${lead.name || lead.email || 'lead'}-${absoluteIndex}`
                         const isSelected = Boolean(selectedRows[rowKey])
 
                         return (
@@ -414,6 +612,53 @@ function LeadSearchPage({ onNavigate }) {
                                 '-'
                               )}
                             </td>
+                            <td className="px-5 py-3 text-sm text-slate-700">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {enrichEmailsByRow[rowKey]?.length ? (
+                                  <div
+                                    className="flex min-w-0 max-w-[220px] flex-col gap-0.5 text-slate-800"
+                                    title={enrichEmailsByRow[rowKey].join('\n')}
+                                  >
+                                    {enrichEmailsByRow[rowKey].map((email, emailIndex) => (
+                                      <a
+                                        key={`${rowKey}-${emailIndex}-${email}`}
+                                        href={`mailto:${email}`}
+                                        className="truncate text-sm text-cyan-700 hover:underline"
+                                      >
+                                        {email}
+                                      </a>
+                                    ))}
+                                  </div>
+                                ) : enrichCompletedByRow[rowKey] ? (
+                                  <span className="text-sm text-slate-400">—</span>
+                                ) : null}
+                                {!enrichCompletedByRow[rowKey] ? (
+                                  <button
+                                    type="button"
+                                    aria-label="Enrich email"
+                                    disabled={Boolean(enrichLoadingByRow[rowKey])}
+                                    onClick={() => handleEnrichEmail(lead, rowKey)}
+                                    className="inline-flex cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-slate-50 p-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {enrichLoadingByRow[rowKey] ? (
+                                      <svg className="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path
+                                          className="opacity-75"
+                                          fill="currentColor"
+                                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                        />
+                                      </svg>
+                                    ) : (
+                                      <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                        <circle cx="12" cy="12" r="3" />
+                                      </svg>
+                                    )}
+                                  </button>
+                                ) : null}
+                              </div>
+                            </td>
                             <td className="px-5 py-3 text-sm text-slate-600">{lead.address || '-'}</td>
                             <td className="px-5 py-3 text-sm text-slate-700">
                               {lead.rating ? `${lead.rating} (${lead.reviews || 0} reviews)` : '-'}
@@ -423,7 +668,7 @@ function LeadSearchPage({ onNavigate }) {
                       })}
                       {!loading && leads.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="px-5 py-8 text-center text-sm text-slate-500">
+                          <td colSpan={7} className="px-5 py-8 text-center text-sm text-slate-500">
                             Start a search to load leads from Zoho CRM.
                           </td>
                         </tr>

@@ -19,7 +19,7 @@ function getOrgWalletFromStorage() {
   return orgPayload?.OrgDetails?.Org_Wallet || orgPayload?.OrganizationDetails?.Org_Wallet || null
 }
 
-function DashboardPage({ onNavigate }) {
+function DashboardPage() {
   const [usageDetails, setUsageDetails] = useState(() => getOrgWalletFromStorage())
 
   useEffect(() => {
@@ -38,7 +38,7 @@ function DashboardPage({ onNavigate }) {
   return (
     <div className="min-h-screen bg-slate-100">
       <div className="mx-auto flex min-h-screen max-w-[1500px] bg-slate-100">
-        <Sidebar activeItem="dashboard" onNavigate={onNavigate} />
+        <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col">
           <TopNavbar />

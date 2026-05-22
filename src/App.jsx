@@ -1,17 +1,12 @@
 import { useEffect, useState } from 'react'
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import CrmHubPage from './pages/CrmHubPage'
 import DashboardPage from './pages/DashboardPage'
+import LeadSearchHistoryPage from './pages/LeadSearchHistoryPage'
 import LeadSearchPage from './pages/LeadSearchPage'
+import NotFoundPage from './pages/NotFoundPage'
 import SettingsPage from './pages/SettingsPage'
-
-const PAGE_STORAGE_KEY = 'leadreach_active_page'
-const ALLOWED_PAGES = new Set(['dashboard', 'search', 'crm', 'settings'])
-
-function normalizePageKey(value) {
-  return String(value ?? '')
-    .toLowerCase()
-    .replace(/[^a-z]/g, '')
-}
+import { ROUTES } from './routes'
 
 function hasConnectedIntegration(payload) {
   const integrations = payload?.IntegrationList
@@ -195,11 +190,25 @@ function BootstrapLoader() {
   )
 }
 
+function AppToasts({ successToast, errorToast }) {
+  return (
+    <>
+      {successToast ? (
+        <div className="fixed right-4 top-4 z-[1000] rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
+          {successToast}
+        </div>
+      ) : null}
+      {errorToast ? (
+        <div className="fixed right-4 top-20 z-[1000] rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
+          {errorToast}
+        </div>
+      ) : null}
+    </>
+  )
+}
+
 function App() {
-  const [activePage, setActivePage] = useState(() => {
-    const storedPage = localStorage.getItem(PAGE_STORAGE_KEY)
-    return ALLOWED_PAGES.has(storedPage) ? storedPage : 'dashboard'
-  })
+  const navigate = useNavigate()
   const [errorToast, setErrorToast] = useState('')
   const [successToast, setSuccessToast] = useState('')
   const [isBootstrapping, setIsBootstrapping] = useState(true)
@@ -360,12 +369,6 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (ALLOWED_PAGES.has(activePage)) {
-      localStorage.setItem(PAGE_STORAGE_KEY, activePage)
-    }
-  }, [activePage])
-
-  useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const grantCode = params.get('code')
 
@@ -378,7 +381,7 @@ function App() {
     const finalizeOAuth = async () => {
       localStorage.setItem('zoho_grant_code', grantCode)
       localStorage.setItem('zoho_datacenter', 'crm.zoho.com')
-      setActivePage('crm')
+      navigate(ROUTES.crm, { replace: true })
 
       try {
         const requestUrl = `${integrationApiBaseUrl}/api/Integration/v1/CreateIntegration`
@@ -455,35 +458,12 @@ function App() {
         window.dispatchEvent(new Event('zoho-connection-updated'))
         showErrorToast(failureMessage)
       } finally {
-        window.history.replaceState({}, document.title, window.location.pathname)
+        navigate(ROUTES.crm, { replace: true })
       }
     }
 
     finalizeOAuth()
-  }, [])
-
-  const handleNavigate = (target) => {
-    const key = normalizePageKey(target)
-
-    if (key === 'dashboard') {
-      setActivePage('dashboard')
-      return
-    }
-
-    if (key === 'crm' || key === 'crmhub') {
-      setActivePage('crm')
-      return
-    }
-
-    if (key === 'search' || key === 'leadsearch') {
-      setActivePage('search')
-      return
-    }
-
-    if (key === 'settings') {
-      setActivePage('settings')
-    }
-  }
+  }, [navigate])
 
   if (isBootstrapping) {
     return (
@@ -498,73 +478,18 @@ function App() {
     )
   }
 
-  if (activePage === 'dashboard') {
-    return (
-      <>
-        {successToast ? (
-          <div className="fixed right-4 top-4 z-[1000] rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
-            {successToast}
-          </div>
-        ) : null}
-        {errorToast ? (
-          <div className="fixed right-4 top-20 z-[1000] rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
-            {errorToast}
-          </div>
-        ) : null}
-        <DashboardPage onNavigate={handleNavigate} />
-      </>
-    )
-  }
-
-  if (activePage === 'crm') {
-    return (
-      <>
-        {successToast ? (
-          <div className="fixed right-4 top-4 z-[1000] rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
-            {successToast}
-          </div>
-        ) : null}
-        {errorToast ? (
-          <div className="fixed right-4 top-20 z-[1000] rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
-            {errorToast}
-          </div>
-        ) : null}
-        <CrmHubPage onNavigate={handleNavigate} />
-      </>
-    )
-  }
-
-  if (activePage === 'settings') {
-    return (
-      <>
-        {successToast ? (
-          <div className="fixed right-4 top-4 z-[1000] rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
-            {successToast}
-          </div>
-        ) : null}
-        {errorToast ? (
-          <div className="fixed right-4 top-20 z-[1000] rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
-            {errorToast}
-          </div>
-        ) : null}
-        <SettingsPage onNavigate={handleNavigate} />
-      </>
-    )
-  }
-
   return (
     <>
-      {successToast ? (
-        <div className="fixed right-4 top-4 z-[1000] rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
-          {successToast}
-        </div>
-      ) : null}
-      {errorToast ? (
-        <div className="fixed right-4 top-20 z-[1000] rounded-lg bg-red-600 px-4 py-3 text-sm font-medium text-white shadow-lg">
-          {errorToast}
-        </div>
-      ) : null}
-      <LeadSearchPage onNavigate={handleNavigate} />
+      <AppToasts successToast={successToast} errorToast={errorToast} />
+      <Routes>
+        <Route path="/" element={<Navigate to={ROUTES.dashboard} replace />} />
+        <Route path={ROUTES.dashboard} element={<DashboardPage />} />
+        <Route path={ROUTES.search} element={<LeadSearchPage />} />
+        <Route path={ROUTES.history} element={<LeadSearchHistoryPage />} />
+        <Route path={ROUTES.crm} element={<CrmHubPage />} />
+        <Route path={ROUTES.settings} element={<SettingsPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
     </>
   )
 }
