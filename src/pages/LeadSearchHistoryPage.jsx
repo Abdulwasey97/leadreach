@@ -5,22 +5,10 @@ import TopNavbar from "../components/layout/TopNavbar";
 const PAGE_SIZE = 10;
 
 const PLATFORM_SOURCES = [
-  { platform: "Facebook", endpoint: "Retrieve_FbLeads", leadsKey: "Fb_Leads" },
-  {
-    platform: "Google",
-    endpoint: "Retrieve_GoogleLeads",
-    leadsKey: "Google_Leads",
-  },
-  {
-    platform: "LinkedIn",
-    endpoint: "Retrieve_LinkedinLeads",
-    leadsKey: "Linkedin_Leads",
-  },
-  {
-    platform: "Instagram",
-    endpoint: "Retrieve_InstaLeads",
-    leadsKey: "Insta_Leads",
-  },
+  { platform: "Facebook", apiValue: "fb" },
+  { platform: "Google", apiValue: "google" },
+  { platform: "LinkedIn", apiValue: "linkedin" },
+  { platform: "Instagram", apiValue: "instagram" },
 ];
 
 const PLATFORM_DOT_STYLES = {
@@ -30,15 +18,47 @@ const PLATFORM_DOT_STYLES = {
   Instagram: "bg-cyan-600",
 };
 
+const SOURCE_TO_PLATFORM = {
+  fb: "Facebook",
+  facebook: "Facebook",
+  google: "Google",
+  linkedin: "LinkedIn",
+  instagram: "Instagram",
+  insta: "Instagram",
+};
+
+const SORTABLE_COLUMNS = [
+  { heading: "Name", sortKey: "leadName" },
+  { heading: "Date", sortKey: "leadCreatedOn" },
+];
+
+const ADDRESS_PREVIEW_LENGTH = 42;
+
 function formatLeadName(lead) {
+  const leadName = String(lead?.leadName || "").trim();
   const first = String(lead?.firstName || "").trim();
   const last = String(lead?.lastName || "").trim();
+  const name = String(lead?.name || "").trim();
 
   if (first && last && first !== last) {
     return `${first} ${last}`;
   }
 
-  return first || last || "-";
+  return leadName || first || last || name || "-";
+}
+
+function formatAddressPreview(address, isExpanded) {
+  const value = String(address || "").trim();
+
+  if (!value) {
+    return "-";
+  }
+
+  if (isExpanded || value.length <= ADDRESS_PREVIEW_LENGTH) {
+    return value;
+  }
+
+  return `${value.slice(0, ADDRESS_PREVIEW_LENGTH).trim()}...`;
 }
 
 function parseUtcDate(value) {
@@ -96,35 +116,111 @@ function getEnrichedEmailSummary(lead) {
   return `${primary} (+${emails.length - 1} more)`;
 }
 
-function SortIcon() {
+function SortIcon({ direction, active }) {
   return (
     <svg
       viewBox="0 0 20 20"
-      className="size-3.5 text-slate-500"
+      className={`size-3.5 ${active ? "text-cyan-700" : "text-slate-500"}`}
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"
     >
-      <path d="m7 6 3-3 3 3" />
-      <path d="m13 14-3 3-3-3" />
+      {direction === "ASC" ? (
+        <>
+          <path d="m7 8 3-3 3 3" />
+          <path d="M10 5v10" />
+        </>
+      ) : direction === "DESC" ? (
+        <>
+          <path d="m7 12 3 3 3-3" />
+          <path d="M10 5v10" />
+        </>
+      ) : (
+        <>
+          <path d="m7 6 3-3 3 3" />
+          <path d="m13 14-3 3-3-3" />
+        </>
+      )}
     </svg>
   );
 }
 
-async function fetchPlatformLeads(apiBaseUrl, orgIdentifier, source) {
+function getPlatformFromLead(lead, fallbackSource) {
+  const source =
+    lead?.source ||
+    lead?.Source ||
+    lead?.sourcePlatform ||
+    lead?.SourcePlatform ||
+    lead?.platform ||
+    lead?.Platform ||
+    fallbackSource ||
+    "";
+  const normalizedSource = String(source).trim().toLowerCase();
+
+  return SOURCE_TO_PLATFORM[normalizedSource] || source || "-";
+}
+
+function getSearchedLeadList(payload) {
+  const leadKeys = [
+    "Searched_Leads",
+    "SearchedLeads",
+    "Leads",
+    "leads",
+    "Lead_Data",
+    "Data",
+    "data",
+  ];
+
+  for (const key of leadKeys) {
+    if (Array.isArray(payload?.[key])) {
+      return payload[key];
+    }
+  }
+
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  return [];
+}
+
+async function fetchSearchedLeads(
+  apiBaseUrl,
+  orgIdentifier,
+  selectedSource,
+  sortConfig,
+) {
+  const requestBody = { orgIdentifier };
+  const sortKey =
+    sortConfig?.sortKey === "leadName"
+      ? !selectedSource?.apiValue
+        ? "leadName"
+        : selectedSource.apiValue === "google"
+          ? "name"
+          : "firstName"
+      : sortConfig?.sortKey;
+
+  requestBody.source = selectedSource?.apiValue || "all";
+
+  if (sortKey && sortConfig?.direction) {
+    requestBody.sort = sortConfig.direction;
+    requestBody.sortKey = sortKey;
+  }
+
   const response = await fetch(
-    `${apiBaseUrl}/api/Leads/v1/${source.endpoint}`,
+    `${apiBaseUrl}/api/Leads/v1/Retrieve_SearchedLeads`,
     {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        accept: "text/plain",
+        "Content-Type": "application/json-patch+json",
       },
-      body: JSON.stringify({ orgIdentifier }),
+      body: JSON.stringify(requestBody),
     },
   );
 
   if (!response.ok) {
-    throw new Error(`${source.platform} leads failed (${response.status})`);
+    throw new Error(`Search history failed (${response.status})`);
   }
 
   const payload = await response.json();
@@ -133,19 +229,16 @@ async function fetchPlatformLeads(apiBaseUrl, orgIdentifier, source) {
     String(payload?.Status || "").toLowerCase() !== "success";
 
   if (requestFailed) {
-    throw new Error(
-      payload?.Reason || `Unable to load ${source.platform} leads.`,
-    );
+    throw new Error(payload?.Reason || "Unable to load search history.");
   }
 
-  const list = Array.isArray(payload?.[source.leadsKey])
-    ? payload[source.leadsKey]
-    : [];
+  const list = getSearchedLeadList(payload);
+  const fallbackSource = selectedSource?.apiValue || "";
 
   return list.map((lead) => ({
     ...lead,
-    platform: source.platform,
-    rowId: `${source.platform}-${lead?.id ?? lead?.leadIdentifier ?? Math.random()}`,
+    platform: getPlatformFromLead(lead, fallbackSource),
+    rowId: `${getPlatformFromLead(lead, fallbackSource)}-${lead?.id ?? lead?.leadIdentifier ?? Math.random()}`,
   }));
 }
 
@@ -156,8 +249,13 @@ function LeadSearchHistoryPage() {
   const [error, setError] = useState("");
   const [leads, setLeads] = useState([]);
   const [platformFilter, setPlatformFilter] = useState("all");
+  const [sortConfig, setSortConfig] = useState({
+    sortKey: "leadCreatedOn",
+    direction: "DESC",
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRows, setSelectedRows] = useState({});
+  const [expandedAddressRows, setExpandedAddressRows] = useState({});
 
   const loadHistory = useCallback(async () => {
     setLoading(true);
@@ -165,45 +263,21 @@ function LeadSearchHistoryPage() {
 
     const orgIdentifier =
       localStorage.getItem("organization_identifier") || "ORG-2012";
+    const selectedSource = PLATFORM_SOURCES.find(
+      (source) => source.platform === platformFilter,
+    );
 
     try {
-      const results = await Promise.allSettled(
-        PLATFORM_SOURCES.map((source) =>
-          fetchPlatformLeads(apiBaseUrl, orgIdentifier, source),
-        ),
+      const searchedLeads = await fetchSearchedLeads(
+        apiBaseUrl,
+        orgIdentifier,
+        selectedSource,
+        sortConfig,
       );
 
-      const mergedLeads = [];
-      const errors = [];
-
-      results.forEach((result, index) => {
-        if (result.status === "fulfilled") {
-          mergedLeads.push(...result.value);
-          return;
-        }
-
-        errors.push(
-          result.reason instanceof Error
-            ? result.reason.message
-            : `${PLATFORM_SOURCES[index].platform} failed`,
-        );
-      });
-
-      mergedLeads.sort((a, b) => {
-        const aTime = new Date(a?.leadCreatedOn || 0).getTime();
-        const bTime = new Date(b?.leadCreatedOn || 0).getTime();
-        return bTime - aTime;
-      });
-
-      setLeads(mergedLeads);
-
-      if (errors.length === PLATFORM_SOURCES.length) {
-        throw new Error(errors[0] || "Unable to load search history.");
-      }
-
-      if (errors.length > 0) {
-        setError(errors.join(" "));
-      }
+      setLeads(searchedLeads);
+      setSelectedRows({});
+      setExpandedAddressRows({});
     } catch (requestError) {
       setLeads([]);
       setError(
@@ -214,7 +288,7 @@ function LeadSearchHistoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, platformFilter, sortConfig]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -256,6 +330,15 @@ function LeadSearchHistoryPage() {
     setCurrentPage(1);
   };
 
+  const handleSortChange = (sortKey) => {
+    setSortConfig((prev) => ({
+      sortKey,
+      direction:
+        prev.sortKey === sortKey && prev.direction === "ASC" ? "DESC" : "ASC",
+    }));
+    setCurrentPage(1);
+  };
+
   const handleToggleAllVisibleRows = () => {
     setSelectedRows((prev) => {
       const next = { ...prev };
@@ -270,6 +353,13 @@ function LeadSearchHistoryPage() {
 
   const handleToggleRow = (rowId) => {
     setSelectedRows((prev) => ({
+      ...prev,
+      [rowId]: !prev[rowId],
+    }));
+  };
+
+  const handleToggleAddress = (rowId) => {
+    setExpandedAddressRows((prev) => ({
       ...prev,
       [rowId]: !prev[rowId],
     }));
@@ -338,43 +428,6 @@ function LeadSearchHistoryPage() {
                   </svg>
                 </label>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-cyan-200 hover:bg-cyan-50"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="size-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                    >
-                      <rect x="4" y="5" width="16" height="15" rx="2" />
-                      <path d="M8 3v4" />
-                      <path d="M16 3v4" />
-                      <path d="M4 10h16" />
-                    </svg>
-                    Date Range
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-cyan-200 hover:bg-cyan-50"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="size-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                    >
-                      <path d="M4 7h16" />
-                      <path d="M8 12h8" />
-                      <path d="M10 17h4" />
-                    </svg>
-                    Filter
-                  </button>
-                </div>
               </div>
 
               <div className="flex items-center justify-between gap-3 px-4 py-3 text-sm text-slate-500">
@@ -395,7 +448,7 @@ function LeadSearchHistoryPage() {
               ) : null}
 
               <div className="overflow-x-auto">
-                <table className="min-w-[1080px] w-full border-separate border-spacing-0">
+                <table className="min-w-[1220px] w-full border-separate border-spacing-0">
                   <thead>
                     <tr className="bg-slate-100">
                       <th className="w-12 border-b border-slate-200 px-4 py-3 text-left">
@@ -422,30 +475,62 @@ function LeadSearchHistoryPage() {
                       </th>
                       {[
                         "Name",
-                        "Date",
-                        "Phone",
-                        "Platform",
-                        "Category",
-                        "Rating",
                         "Email",
-                      ].map((heading) => (
-                        <th
-                          key={heading}
-                          className="border-b border-slate-200 px-4 py-3 text-left text-xs font-medium text-slate-900"
-                        >
-                          <span className="inline-flex items-center gap-2">
-                            {heading}
-                            {["Name", "Date", "Platform"].includes(heading) ? (
-                              <SortIcon />
-                            ) : null}
-                          </span>
-                        </th>
-                      ))}
+                        "Phone",
+                        "Address",
+                        "Platform",
+                        "Rating",
+                        "Date",
+                      ].map((heading) => {
+                        const sortableColumn = SORTABLE_COLUMNS.find(
+                          (column) => column.heading === heading,
+                        );
+                        const isActiveSort =
+                          sortableColumn?.sortKey === sortConfig.sortKey;
+
+                        return (
+                          <th
+                            key={heading}
+                            className="border-b border-slate-200 px-4 py-3 text-left text-xs font-medium text-slate-900"
+                          >
+                            {sortableColumn ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleSortChange(sortableColumn.sortKey)
+                                }
+                                className={`inline-flex items-center gap-2 transition hover:text-cyan-700 ${
+                                  isActiveSort ? "text-cyan-700" : ""
+                                }`}
+                                aria-label={`Sort by ${heading}`}
+                              >
+                                {heading}
+                                <SortIcon
+                                  active={isActiveSort}
+                                  direction={
+                                    isActiveSort
+                                      ? sortConfig.direction
+                                      : undefined
+                                  }
+                                />
+                              </button>
+                            ) : (
+                              <span>{heading}</span>
+                            )}
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody className="bg-white">
                     {paginatedLeads.map((lead) => {
                       const isSelected = Boolean(selectedRows[lead.rowId]);
+                      const isAddressExpanded = Boolean(
+                        expandedAddressRows[lead.rowId],
+                      );
+                      const address = String(lead.address || "").trim();
+                      const canExpandAddress =
+                        address.length > ADDRESS_PREVIEW_LENGTH;
 
                       return (
                         <tr
@@ -478,15 +563,39 @@ function LeadSearchHistoryPage() {
                             <p className="max-w-[220px] truncate text-sm font-semibold text-slate-900">
                               {formatLeadName(lead)}
                             </p>
-                            <p className="mt-0.5 text-xs text-slate-400">
-                              #{lead.leadIdentifier || lead.id || "untracked"}
-                            </p>
                           </td>
                           <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
-                            {formatDate(lead.leadCreatedOn)}
+                            {getEnrichedEmailSummary(lead)}
                           </td>
                           <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
                             {lead.phone || "-"}
+                          </td>
+                          <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
+                            <div className="max-w-[260px]">
+                              <p
+                                className={
+                                  isAddressExpanded
+                                    ? "whitespace-normal break-words"
+                                    : "truncate"
+                                }
+                              >
+                                {formatAddressPreview(
+                                  address,
+                                  isAddressExpanded,
+                                )}
+                              </p>
+                              {canExpandAddress ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleToggleAddress(lead.rowId)
+                                  }
+                                  className="mt-1 text-xs font-semibold text-cyan-700 transition hover:text-cyan-900"
+                                >
+                                  {isAddressExpanded ? "See less" : "See more"}
+                                </button>
+                              ) : null}
+                            </div>
                           </td>
                           <td className="border-b border-slate-100 px-4 py-4">
                             <span className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
@@ -495,13 +604,10 @@ function LeadSearchHistoryPage() {
                             </span>
                           </td>
                           <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
-                            {lead.category || "-"}
-                          </td>
-                          <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
                             {formatRating(lead.rating)}
                           </td>
                           <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
-                            {getEnrichedEmailSummary(lead)}
+                            {formatDate(lead.leadCreatedOn)}
                           </td>
                         </tr>
                       );
