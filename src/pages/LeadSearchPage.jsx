@@ -82,7 +82,9 @@ function getLeadIdentifier(lead) {
     lead?.leadId ??
     lead?.LeadId ??
     lead?.placeId ??
-    lead?.place_id
+    lead?.place_id ??
+    lead?.entityUrn ??
+    lead?.publicIdentifier
 
   if (value != null && String(value).trim() !== '') {
     return String(value).trim()
@@ -109,8 +111,47 @@ function getLeadDisplayName(lead) {
 }
 
 function getLeadWebsite(lead) {
-  const w = lead?.website ?? lead?.Website ?? lead?.url ?? ''
+  const publicIdentifier = String(lead?.publicIdentifier || '').trim()
+  const linkedinProfileUrl = publicIdentifier ? `https://www.linkedin.com/in/${publicIdentifier}/` : ''
+  const w = lead?.website ?? lead?.Website ?? lead?.url ?? lead?.companylink ?? lead?.profileUrl ?? linkedinProfileUrl ?? ''
   return String(w || '').trim()
+}
+
+function getLeadPhone(lead) {
+  return String(lead?.phone ?? lead?.Phone ?? lead?.phoneNumber ?? '').trim() || '-'
+}
+
+function getLeadAddress(lead) {
+  return String(lead?.address ?? lead?.Address ?? lead?.location ?? '').trim() || '-'
+}
+
+function extractEmailFromText(value) {
+  const match = String(value || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
+  return match?.[0] || ''
+}
+
+function getLeadEmails(lead, fallbackEmails = []) {
+  if (fallbackEmails.length > 0) {
+    return fallbackEmails
+  }
+
+  const enrichedEmails = Array.isArray(lead?.EnrichedEmails)
+    ? lead.EnrichedEmails.map((item) => String(item?.emailAddress || '').trim()).filter(Boolean)
+    : []
+
+  if (enrichedEmails.length > 0) {
+    return enrichedEmails
+  }
+
+  return [
+    lead?.email,
+    lead?.Email,
+    lead?.emailAddress,
+    lead?.EmailAddress,
+    extractEmailFromText(lead?.headline),
+  ]
+    .map((email) => String(email || '').trim())
+    .filter(Boolean)
 }
 
 function pickEnrichedEmailsFromPayload(payload) {
@@ -592,10 +633,13 @@ function LeadSearchPage() {
                       {paginatedLeads.map((lead, index) => {
                         const absoluteIndex = (currentPage - 1) * PAGE_SIZE + index
                         const leadIdentifier = getLeadIdentifier(lead)
+                        const leadName = getLeadDisplayName(lead)
+                        const leadWebsite = getLeadWebsite(lead)
                         const rowKey = leadIdentifier
-                          ? `${leadIdentifier}-${lead.name || lead.email || 'lead'}`
-                          : `${lead.name || lead.email || 'lead'}-${absoluteIndex}`
+                          ? `${leadIdentifier}-${leadName}`
+                          : `${leadName}-${absoluteIndex}`
                         const isSelected = Boolean(selectedRows[rowKey])
+                        const emails = getLeadEmails(lead, enrichEmailsByRow[rowKey] || [])
 
                         return (
                           <tr key={rowKey} className={`group transition ${isSelected ? 'bg-cyan-50/50' : 'hover:bg-slate-50'}`}>
@@ -608,21 +652,21 @@ function LeadSearchPage() {
                                     ? 'border-slate-900 bg-slate-900 text-white'
                                     : 'border-slate-300 bg-white text-transparent hover:border-cyan-500'
                                 }`}
-                                aria-label={`Select ${lead.name || 'lead'}`}
+                                aria-label={`Select ${leadName}`}
                               >
                                 <svg viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth="2">
                                   <path d="m4 8 2.4 2.4L12 5" />
                                 </svg>
                               </button>
                             </td>
-                            <td className="border-b border-slate-100 px-4 py-4">
-                              <p className="max-w-[300px] text-sm font-semibold text-slate-900">{lead.name || '-'}</p>
+                          <td className="border-b border-slate-100 px-4 py-4">
+                              <p className="max-w-[300px] text-sm font-semibold text-slate-900">{leadName}</p>
                             </td>
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">{lead.phone || '-'}</td>
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">{getLeadPhone(lead)}</td>
                             <td className="border-b border-slate-100 px-4 py-4 text-sm">
-                              {lead.website ? (
-                                <a href={lead.website} target="_blank" rel="noreferrer" className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 font-medium text-cyan-700 transition hover:border-cyan-200 hover:bg-cyan-50">
-                                  Visit Website
+                              {leadWebsite ? (
+                                <a href={leadWebsite} target="_blank" rel="noreferrer" className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 font-medium text-cyan-700 transition hover:border-cyan-200 hover:bg-cyan-50">
+                                  {selectedSource === 'linkedin' ? 'View Profile' : 'Visit Website'}
                                 </a>
                               ) : (
                                 <span className="text-slate-400">-</span>
@@ -630,12 +674,12 @@ function LeadSearchPage() {
                             </td>
                             <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
                               <div className="flex flex-wrap items-center gap-2">
-                                {enrichEmailsByRow[rowKey]?.length ? (
+                                {emails.length ? (
                                   <div
                                     className="flex min-w-0 max-w-[220px] flex-col gap-0.5 text-slate-800"
-                                    title={enrichEmailsByRow[rowKey].join('\n')}
+                                    title={emails.join('\n')}
                                   >
-                                    {enrichEmailsByRow[rowKey].map((email, emailIndex) => (
+                                    {emails.map((email, emailIndex) => (
                                       <a
                                         key={`${rowKey}-${emailIndex}-${email}`}
                                         href={`mailto:${email}`}
@@ -675,7 +719,7 @@ function LeadSearchPage() {
                                 ) : null}
                               </div>
                             </td>
-                            <td className="max-w-md border-b border-slate-100 px-4 py-4 text-sm leading-6 text-slate-600">{lead.address || '-'}</td>
+                            <td className="max-w-md border-b border-slate-100 px-4 py-4 text-sm leading-6 text-slate-600">{getLeadAddress(lead)}</td>
                             <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
                               {lead.rating ? (
                                 <span className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 font-medium">
