@@ -66,6 +66,9 @@ const USAGE_TYPE_TO_PLATFORM = {
   LinkedIn: 'linkedin',
 }
 
+const EXPORT_MAPPING_FIELDS = ['Business Name', 'Rating', 'Email 1', 'Email 2', 'Email 3', 'Phone', 'Website', 'Address']
+const EXPORT_CRM_FIELDS = ['Select', 'First Name', 'Last Name', 'Email', 'Phone', 'Website', 'Street', 'Rating', 'Lead Source']
+
 function SortIcon() {
   return (
     <svg viewBox="0 0 20 20" className="size-3.5 text-slate-500" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -266,6 +269,9 @@ function LeadSearchPage() {
   const [enrichEmailsByRow, setEnrichEmailsByRow] = useState({})
   const [enrichCompletedByRow, setEnrichCompletedByRow] = useState({})
   const [orgWallet, setOrgWallet] = useState(() => getOrgWalletFromStorage())
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [exportModule, setExportModule] = useState('')
+  const [exportStep, setExportStep] = useState(1)
 
   const selectedCount = useMemo(
     () => Object.values(selectedRows).filter(Boolean).length,
@@ -282,7 +288,7 @@ function LeadSearchPage() {
     () =>
       paginatedLeads.map((lead, index) => {
         const id = getLeadIdentifier(lead)
-        const label = lead.name || lead.email || 'lead'
+        const label = getLeadDisplayName(lead)
         return id ? `${id}-${label}` : `${label}-${(currentPage - 1) * PAGE_SIZE + index}`
       }),
     [currentPage, paginatedLeads],
@@ -463,6 +469,40 @@ function LeadSearchPage() {
     }))
   }
 
+  const handleOpenExportModal = () => {
+    setExportModule('')
+    setExportStep(1)
+    setShowExportModal(true)
+  }
+
+  const handleCloseExportModal = () => {
+    setShowExportModal(false)
+    setExportStep(1)
+  }
+
+  const handleExportNext = () => {
+    if (exportStep === 1) {
+      setExportStep(2)
+      return
+    }
+
+    if (exportStep === 2) {
+      setExportStep(3)
+      return
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('zoho-toast', {
+        detail: {
+          type: 'success',
+          message: `Ready to export ${selectedCount || leads.length} lead${(selectedCount || leads.length) === 1 ? '' : 's'} to ${exportModule}.`,
+        },
+      }),
+    )
+    setShowExportModal(false)
+    setExportStep(1)
+  }
+
   const handleEnrichEmail = async (lead, rowKey) => {
     const orgIdentifier = localStorage.getItem('organization_identifier') || 'ORG-2012'
     const leadIdentifier = getLeadIdentifier(lead)
@@ -590,8 +630,23 @@ function LeadSearchPage() {
                       {loading ? 'Fetching results from Zoho CRM...' : `${totalLeads} leads found`}
                     </p>
                   </div>
-                  <div className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
-                    Selected: {selectedCount}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleOpenExportModal}
+                      disabled={leads.length === 0}
+                      className="inline-flex h-9 items-center gap-2 rounded-lg border border-cyan-200 bg-white px-3 text-sm font-semibold text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                        <path d="M12 3v12" />
+                        <path d="m7 10 5 5 5-5" />
+                        <path d="M5 21h14" />
+                      </svg>
+                      Export
+                    </button>
+                    <div className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
+                      Selected: {selectedCount}
+                    </div>
                   </div>
                 </div>
 
@@ -770,6 +825,171 @@ function LeadSearchPage() {
               </section>
             </main>
 
+            {showExportModal ? (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
+                <div className="w-full max-w-3xl overflow-hidden rounded-lg bg-white shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                    <h3 className="text-2xl font-bold text-sky-700">Import Data</h3>
+                    <button
+                      type="button"
+                      onClick={handleCloseExportModal}
+                      className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                      aria-label="Close export modal"
+                    >
+                      <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                        <path d="M18 6 6 18" />
+                        <path d="m6 6 12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {exportStep === 1 ? (
+                    <div className="px-7 py-10">
+                      <div className="mx-auto max-w-xs text-center">
+                        <label htmlFor="export-module" className="text-xl font-bold text-sky-700">
+                          Select Module
+                        </label>
+                        <div className="relative mt-3">
+                          <select
+                            id="export-module"
+                            value={exportModule}
+                            onChange={(event) => setExportModule(event.target.value)}
+                            className="h-11 w-full cursor-pointer appearance-none rounded-md border border-slate-200 bg-slate-50 px-3 pr-10 text-sm font-medium text-slate-700 outline-none transition hover:border-cyan-200 focus:border-cyan-400"
+                          >
+                            <option value="">Select</option>
+                            <option value="Leads">Leads</option>
+                            <option value="Contacts">Contacts</option>
+                            <option value="Accounts">Accounts</option>
+                            <option value="Deals">Deals</option>
+                          </select>
+                          <svg
+                            viewBox="0 0 20 20"
+                            className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-500"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                          >
+                            <path d="m6 8 4 4 4-4" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 flex items-start justify-between gap-4 bg-amber-100 px-5 py-4 text-sm leading-7 text-slate-700">
+                        <p>
+                          It is recommended to setup <span className="font-bold">Decimal Fields</span> for mapping{' '}
+                          <span className="font-bold">Latitude</span>, <span className="font-bold">Longitude</span>,{' '}
+                          <span className="font-bold">Rating</span> etc in your{' '}
+                          <span className="font-bold">CRM Module</span> before attempting data import.
+                        </p>
+                        <button
+                          type="button"
+                          className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center text-slate-700 hover:text-slate-950"
+                          aria-label="Dismiss export recommendation"
+                        >
+                          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                            <path d="M18 6 6 18" />
+                            <path d="m6 6 12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ) : exportStep === 2 ? (
+                    <div className="px-7 py-5">
+                      <div className="flex items-start justify-between gap-4 rounded-md bg-amber-100 px-5 py-3 text-sm text-amber-900">
+                        <p>
+                          You must map <span className="font-semibold">"Last Name"</span> because these are the required fields in this module.
+                        </p>
+                        <button
+                          type="button"
+                          className="inline-flex size-6 shrink-0 items-center justify-center text-amber-900 hover:text-slate-950"
+                          aria-label="Dismiss required field warning"
+                        >
+                          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                            <path d="M18 6 6 18" />
+                            <path d="m6 6 12 12" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <h4 className="mt-4 text-sm font-bold text-slate-800">{exportModule} ( Mapping )</h4>
+                      <div className="mt-3 max-h-[260px] overflow-y-auto rounded-lg border border-slate-200">
+                        {EXPORT_MAPPING_FIELDS.map((field, index) => (
+                          <div key={field} className="grid grid-cols-[1fr_1.45fr] items-center border-b border-slate-100 last:border-b-0">
+                            <div className="px-4 py-3 text-sm font-medium text-slate-700">{field}</div>
+                            <div className="px-4 py-2">
+                              <div className="relative">
+                                <select
+                                  defaultValue={index === 0 ? 'First Name' : index === 1 ? 'Last Name' : index === 2 ? 'Email' : 'Select'}
+                                  className="h-10 w-full cursor-pointer appearance-none rounded-md border border-slate-200 bg-white px-3 pr-10 text-sm text-slate-700 outline-none transition hover:border-cyan-200 focus:border-cyan-400"
+                                >
+                                  {EXPORT_CRM_FIELDS.map((crmField) => (
+                                    <option key={crmField} value={crmField}>
+                                      {crmField}
+                                    </option>
+                                  ))}
+                                </select>
+                                <svg
+                                  viewBox="0 0 20 20"
+                                  className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-500"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.8"
+                                >
+                                  <path d="m6 8 4 4 4-4" />
+                                </svg>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="px-7 py-10">
+                      <div className="mx-auto max-w-sm text-center">
+                        <h4 className="text-xl font-bold text-sky-700">Summary</h4>
+                        <div className="mt-7 space-y-7 text-base">
+                          <p className="text-slate-500">
+                            <span className="font-bold text-slate-800">Selected Module:</span> {exportModule}
+                          </p>
+                          <p className="text-slate-500">
+                            <span className="font-bold text-slate-800">Review Locale:</span> Field{' '}
+                            <span className="text-slate-700">✓</span>
+                          </p>
+                          <p className="text-slate-500">
+                            <span className="font-bold text-slate-800">Records Selected:</span>{' '}
+                            {selectedCount || leads.length}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
+                    {exportStep > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => setExportStep((prev) => Math.max(1, prev - 1))}
+                        className="rounded-full border border-sky-300 px-5 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-50"
+                      >
+                        Previous
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={handleExportNext}
+                      disabled={exportStep === 1 && !exportModule}
+                      className={`rounded-full border px-5 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                        exportStep === 3
+                          ? 'border-rose-300 bg-rose-50 text-rose-600 hover:bg-rose-100'
+                          : 'border-sky-300 text-sky-700 hover:bg-sky-50'
+                      }`}
+                    >
+                      {exportStep === 3 ? 'Import' : 'Next'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
