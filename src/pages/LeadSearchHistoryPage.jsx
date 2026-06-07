@@ -7,14 +7,12 @@ const PLATFORM_SOURCES = [
   { platform: "Facebook", apiValue: "fb" },
   { platform: "Google", apiValue: "google" },
   { platform: "LinkedIn", apiValue: "linkedin" },
-  { platform: "Instagram", apiValue: "instagram" },
 ];
 
 const PLATFORM_DOT_STYLES = {
   Facebook: "bg-cyan-600",
   Google: "bg-cyan-600",
   LinkedIn: "bg-cyan-600",
-  Instagram: "bg-cyan-600",
 };
 
 const SOURCE_TO_PLATFORM = {
@@ -22,8 +20,6 @@ const SOURCE_TO_PLATFORM = {
   facebook: "Facebook",
   google: "Google",
   linkedin: "LinkedIn",
-  instagram: "Instagram",
-  insta: "Instagram",
 };
 
 const SORTABLE_COLUMNS = [
@@ -102,17 +98,42 @@ function formatRating(value) {
 }
 
 function getEnrichedEmailSummary(lead) {
-  const emails = Array.isArray(lead?.EnrichedEmails) ? lead.EnrichedEmails : [];
+  const directEmails = [
+    lead?.email,
+    lead?.Email,
+    lead?.emailAddress,
+    lead?.EmailAddress,
+    lead?.enrichedEmail,
+    lead?.EnrichedEmail,
+  ]
+    .map((email) => String(email || "").trim())
+    .filter(Boolean);
+
+  const enrichedEmails = Array.isArray(lead?.EnrichedEmails)
+    ? lead.EnrichedEmails
+        .map((email) =>
+          String(
+            email?.emailAddress ??
+              email?.EmailAddress ??
+              email?.email ??
+              email?.Email ??
+              email ??
+              "",
+          ).trim(),
+        )
+        .filter(Boolean)
+    : [];
+
+  const emails = [...new Set([...directEmails, ...enrichedEmails])];
   if (emails.length === 0) {
-    return "-";
+    return "No enriched";
   }
 
-  const primary = emails[0]?.emailAddress;
   if (emails.length === 1) {
-    return primary || "-";
+    return emails[0];
   }
 
-  return `${primary} (+${emails.length - 1} more)`;
+  return `${emails[0]} (+${emails.length - 1} more)`;
 }
 
 function SortIcon({ direction, active }) {
@@ -150,6 +171,8 @@ function getPlatformFromLead(lead, fallbackSource) {
     lead?.Source ||
     lead?.sourcePlatform ||
     lead?.SourcePlatform ||
+    lead?.leadSource ||
+    lead?.LeadSource ||
     lead?.platform ||
     lead?.Platform ||
     fallbackSource ||
@@ -234,11 +257,20 @@ async function fetchSearchedLeads(
   const list = getSearchedLeadList(payload);
   const fallbackSource = selectedSource?.apiValue || "";
 
-  return list.map((lead) => ({
-    ...lead,
-    platform: getPlatformFromLead(lead, fallbackSource),
-    rowId: `${getPlatformFromLead(lead, fallbackSource)}-${lead?.id ?? lead?.leadIdentifier ?? Math.random()}`,
-  }));
+  return list
+    .map((lead) => {
+      const platform = getPlatformFromLead(lead, fallbackSource);
+
+      return {
+        ...lead,
+        platform,
+        rowId: `${platform}-${lead?.id ?? lead?.leadIdentifier ?? Math.random()}`,
+      };
+    })
+    .filter((lead) => {
+      const platform = String(lead.platform || "").trim().toLowerCase();
+      return platform !== "instagram" && platform !== "insta";
+    });
 }
 
 function LeadSearchHistoryPage() {
