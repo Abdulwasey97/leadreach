@@ -39,7 +39,6 @@ export const quotas = [
   { id: 'google', platform: 'Google Search Ads', value: 8200, max: 10000, color: 'bg-emerald-500' },
   { id: 'linkedin', platform: 'LinkedIn Outreach', value: 2450, max: 5000, color: 'bg-emerald-500' },
   { id: 'meta', platform: 'Facebook Meta', value: 1100, max: 2500, color: 'bg-green-500' },
-  { id: 'instagram', platform: 'Instagram Visuals', value: 920, max: 1000, color: 'bg-red-500' },
 ]
 
 export const activities = [

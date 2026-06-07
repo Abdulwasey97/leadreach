@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import CrmHubPage from './pages/CrmHubPage'
 import DashboardPage from './pages/DashboardPage'
+import HelpCenterPage from './pages/HelpCenterPage'
 import LeadSearchHistoryPage from './pages/LeadSearchHistoryPage'
 import LeadSearchPage from './pages/LeadSearchPage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -510,6 +511,7 @@ function App() {
         <Route path={ROUTES.history} element={<LeadSearchHistoryPage />} />
         <Route path={ROUTES.crm} element={<CrmHubPage />} />
         <Route path={ROUTES.settings} element={<SettingsPage />} />
+        <Route path={ROUTES.help} element={<HelpCenterPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </>

@@ -6,7 +6,7 @@ function buildUsageSummary(usageDetails) {
       { id: 'total-used', label: 'Total Used', value: '0' },
       { id: 'total-limit', label: 'Total Limit', value: '0' },
       { id: 'utilization', label: 'Utilization', value: '0%' },
-      { id: 'active-platforms', label: 'Active Platforms', value: '0/5' },
+      { id: 'active-platforms', label: 'Active Platforms', value: '0/4' },
     ]
   }
 
@@ -14,14 +14,12 @@ function buildUsageSummary(usageDetails) {
     usageDetails.GoogleSearchLimitUtilized || 0,
     usageDetails.LinkedinSearchLimitUtilized || 0,
     usageDetails.FbSearchLimitUtilized || 0,
-    usageDetails.InstaSearchLimitUtilized || 0,
     usageDetails.EmailEnrichmentUtilized || 0,
   ]
   const totalValues = [
     usageDetails.TotalGoogleSearchLimit || 0,
     usageDetails.TotalLinkedinSearchLimit || 0,
     usageDetails.TotalFbSearchLimit || 0,
-    usageDetails.TotalInstaSearchLimit || 0,
     usageDetails.TotalEmailEnrichment || 0,
   ]
 
@@ -34,7 +32,7 @@ function buildUsageSummary(usageDetails) {
     { id: 'total-used', label: 'Total Used', value: totalUsed.toLocaleString() },
     { id: 'total-limit', label: 'Total Limit', value: totalLimit.toLocaleString() },
     { id: 'utilization', label: 'Utilization', value: `${utilizationPercent}%` },
-    { id: 'active-platforms', label: 'Active Platforms', value: `${activePlatforms}/5` },
+    { id: 'active-platforms', label: 'Active Platforms', value: `${activePlatforms}/4` },
   ]
 }
 

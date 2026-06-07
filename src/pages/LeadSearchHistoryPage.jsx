@@ -396,18 +396,6 @@ function LeadSearchHistoryPage() {
     }));
   };
 
-  const platformCounts = useMemo(() => {
-    const counts = { all: leads.length };
-
-    PLATFORM_SOURCES.forEach((source) => {
-      counts[source.platform] = leads.filter(
-        (lead) => lead.platform === source.platform,
-      ).length;
-    });
-
-    return counts;
-  }, [leads]);
-
   return (
     <div className="min-h-screen bg-slate-100">
       <div className="mx-auto flex min-h-screen max-w-[1500px]">
@@ -435,11 +423,10 @@ function LeadSearchHistoryPage() {
                     }
                     className="h-9 cursor-pointer appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-9 text-sm font-medium text-slate-700 outline-none transition hover:border-cyan-200 focus:border-cyan-400"
                   >
-                    <option value="all">All ({platformCounts.all})</option>
+                    <option value="all">All</option>
                     {PLATFORM_SOURCES.map((source) => (
                       <option key={source.platform} value={source.platform}>
-                        {source.platform} (
-                        {platformCounts[source.platform] || 0})
+                        {source.platform}
                       </option>
                     ))}
                   </select>

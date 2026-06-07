@@ -29,13 +29,6 @@ function buildUsageQuotas(usageDetails) {
       color: "bg-indigo-500",
     },
     {
-      id: "instagram",
-      platform: "Instagram Search",
-      value: usageDetails.InstaSearchLimitUtilized || 0,
-      max: usageDetails.TotalInstaSearchLimit || 0,
-      color: "bg-fuchsia-500",
-    },
-    {
       id: "email",
       platform: "Email Enrichment",
       value: usageDetails.EmailEnrichmentUtilized || 0,

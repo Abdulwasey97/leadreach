@@ -9,7 +9,7 @@ const TOOLTIP_WIDTH = 150
 const TOOLTIP_HEIGHT = 68
 
 function buildUsageSeries(usageDetails) {
-  const labels = ['Google', 'LinkedIn', 'Facebook', 'Instagram', 'Email']
+  const labels = ['Google', 'LinkedIn', 'Facebook', 'Email']
 
   if (!usageDetails) {
     return labels.map((label) => ({
@@ -34,11 +34,6 @@ function buildUsageSeries(usageDetails) {
       label: 'Facebook',
       value: usageDetails.FbSearchLimitUtilized || 0,
       max: usageDetails.TotalFbSearchLimit || 0,
-    },
-    {
-      label: 'Instagram',
-      value: usageDetails.InstaSearchLimitUtilized || 0,
-      max: usageDetails.TotalInstaSearchLimit || 0,
     },
     {
       label: 'Email',
@@ -202,7 +197,7 @@ function LeadChart({ usageDetails }) {
           </g>
         ) : null}
       </svg>
-      <div className="grid grid-cols-5 gap-1 px-2 text-center text-[10px] font-medium text-slate-400">
+      <div className="grid grid-cols-4 gap-1 px-2 text-center text-[10px] font-medium text-slate-400">
         {usageSeries.map((item, index) => (
           <span key={item.label} className={activeIndex === index ? 'truncate text-cyan-700' : 'truncate'}>
             {item.label}
