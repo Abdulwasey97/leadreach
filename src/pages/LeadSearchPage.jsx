@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import AdvancedFilteringCard from '../components/leadSearch/AdvancedFilteringCard'
 import Sidebar from '../components/layout/Sidebar'
-import TopNavbar from '../components/layout/TopNavbar'
 import { platformTargets } from '../data/leadSearchData'
 
 const EMAIL_TYPES_BY_CATEGORY = {
@@ -12,14 +11,12 @@ const EMAIL_TYPES_BY_CATEGORY = {
 const SOURCE_TO_API_VALUE = {
   google: 'google',
   facebook: 'fb',
-  instagram: 'instagram',
   linkedin: 'linkedin',
 }
 
 const SOURCE_TO_USAGE_TYPE = {
   google: 'Google',
   facebook: 'Facebook',
-  instagram: 'Instagram',
   linkedin: 'LinkedIn',
   emailenrichment: 'EmailEnrichment',
   email_enrichment: 'EmailEnrichment',
@@ -47,11 +44,6 @@ const PLATFORM_USAGE_CONFIG = {
     totalKey: 'TotalFbSearchLimit',
     utilizedKey: 'FbSearchLimitUtilized',
   },
-  instagram: {
-    enabledKey: 'IsInstaSearchEnabled',
-    totalKey: 'TotalInstaSearchLimit',
-    utilizedKey: 'InstaSearchLimitUtilized',
-  },
   linkedin: {
     enabledKey: 'IsLinkedinSearchEnabled',
     totalKey: 'TotalLinkedinSearchLimit',
@@ -62,7 +54,6 @@ const PLATFORM_USAGE_CONFIG = {
 const USAGE_TYPE_TO_PLATFORM = {
   Google: 'google',
   Facebook: 'facebook',
-  Instagram: 'instagram',
   LinkedIn: 'linkedin',
 }
 
@@ -107,6 +98,9 @@ function getLeadDisplayName(lead) {
   if (first && last) {
     return `${first} ${last}`
   }
+  if (lead?.Name != null && String(lead.Name).trim() !== '') {
+    return String(lead.Name).trim()
+  }
   if (lead?.name != null && String(lead.name).trim() !== '') {
     return String(lead.name).trim()
   }
@@ -116,8 +110,24 @@ function getLeadDisplayName(lead) {
 function getLeadWebsite(lead) {
   const publicIdentifier = String(lead?.publicIdentifier || '').trim()
   const linkedinProfileUrl = publicIdentifier ? `https://www.linkedin.com/in/${publicIdentifier}/` : ''
-  const w = lead?.website ?? lead?.Website ?? lead?.url ?? lead?.companylink ?? lead?.profileUrl ?? linkedinProfileUrl ?? ''
+  const w = lead?.website ?? lead?.Website ?? lead?.url ?? lead?.Url ?? lead?.companylink ?? lead?.profileUrl ?? linkedinProfileUrl ?? ''
   return String(w || '').trim()
+}
+
+function getLeadWebsiteLabel(lead, selectedSource) {
+  const website = String(lead?.website ?? lead?.Website ?? '').trim()
+  if (website) {
+    return 'Visit Website'
+  }
+
+  const leadSource = String(lead?.LeadSource || lead?.leadSource || '').toLowerCase()
+  if (selectedSource === 'linkedin' || leadSource === 'linkedin') {
+    return 'View Profile'
+  }
+  if (leadSource === 'facebook') {
+    return 'View Page'
+  }
+  return 'Visit Website'
 }
 
 function getLeadPhone(lead) {
@@ -125,7 +135,7 @@ function getLeadPhone(lead) {
 }
 
 function getLeadAddress(lead) {
-  return String(lead?.address ?? lead?.Address ?? lead?.location ?? '').trim() || '-'
+  return String(lead?.address ?? lead?.Address ?? lead?.location ?? lead?.PageIntro ?? '').trim() || '-'
 }
 
 function extractEmailFromText(value) {
@@ -155,6 +165,25 @@ function getLeadEmails(lead, fallbackEmails = []) {
   ]
     .map((email) => String(email || '').trim())
     .filter(Boolean)
+}
+
+function getLeadRatingLabel(lead) {
+  const rating = lead?.rating ?? lead?.Rating
+  const reviews = lead?.reviews ?? lead?.reviewCount ?? lead?.RatingCount
+
+  if (rating != null && String(rating).trim() !== '') {
+    const ratingLabel = String(rating).trim()
+    if (reviews != null && String(reviews).trim() !== '' && !ratingLabel.toLowerCase().includes('review')) {
+      return `${ratingLabel} (${reviews} reviews)`
+    }
+    return ratingLabel
+  }
+
+  if (reviews != null && String(reviews).trim() !== '') {
+    return `${reviews} reviews`
+  }
+
+  return ''
 }
 
 function pickEnrichedEmailsFromPayload(payload) {
@@ -603,8 +632,6 @@ function LeadSearchPage() {
         <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopNavbar searchPlaceholder="Search leads by industry or role..." showSupport />
-
           <div className="flex flex-1 p-5">
             <main className="w-full min-w-0 space-y-4">
               <AdvancedFilteringCard
@@ -694,7 +721,10 @@ function LeadSearchPage() {
                           ? `${leadIdentifier}-${leadName}`
                           : `${leadName}-${absoluteIndex}`
                         const isSelected = Boolean(selectedRows[rowKey])
+                        const lookupEmails = getLeadEmails(lead)
                         const emails = getLeadEmails(lead, enrichEmailsByRow[rowKey] || [])
+                        const canEnrichEmail = lookupEmails.length === 0 && !enrichCompletedByRow[rowKey]
+                        const leadRating = getLeadRatingLabel(lead)
 
                         return (
                           <tr key={rowKey} className={`group transition ${isSelected ? 'bg-cyan-50/50' : 'hover:bg-slate-50'}`}>
@@ -721,7 +751,7 @@ function LeadSearchPage() {
                             <td className="border-b border-slate-100 px-4 py-4 text-sm">
                               {leadWebsite ? (
                                 <a href={leadWebsite} target="_blank" rel="noreferrer" className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 font-medium text-cyan-700 transition hover:border-cyan-200 hover:bg-cyan-50">
-                                  {selectedSource === 'linkedin' ? 'View Profile' : 'Visit Website'}
+                                  {getLeadWebsiteLabel(lead, selectedSource)}
                                 </a>
                               ) : (
                                 <span className="text-slate-400">-</span>
@@ -747,7 +777,7 @@ function LeadSearchPage() {
                                 ) : enrichCompletedByRow[rowKey] ? (
                                   <span className="text-sm text-slate-400">—</span>
                                 ) : null}
-                                {!enrichCompletedByRow[rowKey] ? (
+                                {canEnrichEmail ? (
                                   <button
                                     type="button"
                                     aria-label="Enrich email"
@@ -776,9 +806,9 @@ function LeadSearchPage() {
                             </td>
                             <td className="max-w-md border-b border-slate-100 px-4 py-4 text-sm leading-6 text-slate-600">{getLeadAddress(lead)}</td>
                             <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
-                              {lead.rating ? (
+                              {leadRating ? (
                                 <span className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 font-medium">
-                                  {lead.rating} ({lead.reviews || 0} reviews)
+                                  {leadRating}
                                 </span>
                               ) : (
                                 <span className="text-slate-400">-</span>

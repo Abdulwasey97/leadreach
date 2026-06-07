@@ -4,7 +4,6 @@ import StatsGrid from "../components/dashboard/StatsGrid";
 import RightRail from "../components/layout/RightRail";
 
 import Sidebar from "../components/layout/Sidebar";
-import TopNavbar from "../components/layout/TopNavbar";
 
 function safeParseJson(value) {
   try {
@@ -55,7 +54,6 @@ function DashboardPage() {
         <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopNavbar />
           <div className="grid flex-1 gap-5 p-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
             <main className="space-y-4">
               <header className="flex flex-wrap items-end justify-between gap-3">

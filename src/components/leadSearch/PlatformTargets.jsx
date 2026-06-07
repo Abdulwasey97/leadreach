@@ -12,17 +12,6 @@ function TargetIcon({ icon }) {
     )
   }
 
-  if (icon === 'aperture') {
-    return (
-      <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <circle cx="12" cy="12" r="9" />
-        <path d="m14.5 8.2-5 8.6" />
-        <path d="M7.4 9.8h9.2" />
-        <path d="m9.5 15.8 5-8.6" />
-      </svg>
-    )
-  }
-
   if (icon === 'briefcase') {
     return (
       <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -48,7 +37,7 @@ function PlatformTargets({ selectedSource, onSelectSource }) {
         <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Select one</p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {platformTargets.map((platform) => {
           const isSelected = selectedSource === platform.id
           return (

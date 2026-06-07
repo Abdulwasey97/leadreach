@@ -2,7 +2,6 @@ import ActiveIntegrationsSection from '../components/crmHub/ActiveIntegrationsSe
 import CrmHubRightRail from '../components/crmHub/CrmHubRightRail'
 
 import Sidebar from '../components/layout/Sidebar'
-import TopNavbar from '../components/layout/TopNavbar'
 
 function CrmHubPage() {
   return (
@@ -11,8 +10,6 @@ function CrmHubPage() {
         <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopNavbar searchPlaceholder="Filter CRM flows..." showSupport showAvatar />
-
           <div className="grid flex-1 gap-5 p-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
             <main className="space-y-4">
               <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

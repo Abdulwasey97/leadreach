@@ -1,10 +1,8 @@
-import { topNavItems } from '../../data/dashboardData'
-
 function TopNavbar({
   showSupport = false,
   showAvatar = false,
-  showUpgrade = true,
-  navItems = topNavItems,
+  showUpgrade = false,
+  navItems = [],
   activeNavItem = '',
   onNavItemClick,
 }) {

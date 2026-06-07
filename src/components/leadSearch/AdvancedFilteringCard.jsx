@@ -34,22 +34,6 @@ function TargetIcon({ icon }) {
     );
   }
 
-  if (icon === "aperture") {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        className="size-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      >
-        <rect x="4" y="4" width="16" height="16" rx="5" />
-        <circle cx="12" cy="12" r="3.2" />
-        <circle cx="17.1" cy="6.9" r="0.8" fill="currentColor" stroke="none" />
-      </svg>
-    );
-  }
-
   if (icon === "briefcase") {
     return (
       <svg
@@ -138,7 +122,7 @@ function AdvancedFilteringCard({
               <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 Platform
               </p>
-              <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
                 {platforms.map((platform) => {
                   const isSelected = selectedSource === platform.id;
                   const isBlocked = blockedPlatformIds.includes(platform.id);

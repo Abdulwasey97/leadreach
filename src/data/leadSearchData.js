@@ -1,7 +1,6 @@
 export const platformTargets = [
   { id: 'google', name: 'Google', type: 'Business Leads', icon: 'search', selected: false },
   { id: 'facebook', name: 'Facebook', type: 'Community Groups', icon: 'globe', selected: true },
-  { id: 'instagram', name: 'Instagram', type: 'Visual Brands', icon: 'aperture', selected: false },
   { id: 'linkedin', name: 'LinkedIn', type: 'B2B Professional', icon: 'briefcase', selected: false },
 ]
 

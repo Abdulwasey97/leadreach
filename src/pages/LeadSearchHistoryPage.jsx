@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/layout/Sidebar";
-import TopNavbar from "../components/layout/TopNavbar";
 
 const PAGE_SIZE = 10;
 
@@ -383,11 +382,6 @@ function LeadSearchHistoryPage() {
         <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopNavbar
-            searchPlaceholder="Search history by name, category, or address..."
-            showSupport
-          />
-
           <div className="flex-1 space-y-5 p-5">
             <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-700">
