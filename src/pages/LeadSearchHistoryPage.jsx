@@ -489,12 +489,12 @@ function LeadSearchHistoryPage() {
                       {[
                         "Name",
                         "Email",
-                        "Phone",
+                        platformFilter === "LinkedIn" ? null : "Phone",
                         "Address",
                         "Platform",
-                        "Rating",
+                        platformFilter === "LinkedIn" ? "Followers / Connections" : "Rating",
                         "Date",
-                      ].map((heading) => {
+                      ].filter(Boolean).map((heading) => {
                         const sortableColumn = SORTABLE_COLUMNS.find(
                           (column) => column.heading === heading,
                         );
@@ -541,7 +541,11 @@ function LeadSearchHistoryPage() {
                       const isAddressExpanded = Boolean(
                         expandedAddressRows[lead.rowId],
                       );
-                      const address = String(lead.address || "").trim();
+                      const address = String(
+                        lead.platform === "LinkedIn" && lead.location
+                          ? lead.location
+                          : lead.address || ""
+                      ).trim();
                       const canExpandAddress =
                         address.length > ADDRESS_PREVIEW_LENGTH;
 
@@ -573,16 +577,46 @@ function LeadSearchHistoryPage() {
                             </button>
                           </td>
                           <td className="border-b border-slate-100 px-4 py-4">
-                            <p className="max-w-[220px] truncate text-sm font-semibold text-slate-900">
-                              {formatLeadName(lead)}
-                            </p>
+                            {lead.platform === "LinkedIn" ? (
+                              <div className="flex items-center gap-3">
+                                {lead?.profilePictureUrl ? (
+                                  <img
+                                    src={lead.profilePictureUrl}
+                                    alt={formatLeadName(lead)}
+                                    className="size-10 rounded-full object-cover border border-slate-200 shrink-0"
+                                  />
+                                ) : (
+                                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-xs font-bold text-cyan-700">
+                                    {lead?.firstName && lead?.lastName
+                                      ? `${lead.firstName[0] || ''}${lead.lastName[0] || ''}`.toUpperCase()
+                                      : formatLeadName(lead)[0]?.toUpperCase() || '?'}
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="max-w-[220px] truncate text-sm font-semibold text-slate-900">
+                                    {formatLeadName(lead)}
+                                  </p>
+                                  {lead?.headline && (
+                                    <p className="max-w-[220px] truncate text-xs text-slate-500" title={lead.headline}>
+                                      {lead.headline}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="max-w-[220px] truncate text-sm font-semibold text-slate-900">
+                                {formatLeadName(lead)}
+                              </p>
+                            )}
                           </td>
                           <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
                             {getEnrichedEmailSummary(lead)}
                           </td>
-                          <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
-                            {lead.phone || "-"}
-                          </td>
+                          {platformFilter !== "LinkedIn" && (
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
+                              {lead.platform === "LinkedIn" ? "-" : (lead.phone || "-")}
+                            </td>
+                          )}
                           <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
                             <div className="max-w-[260px]">
                               <p
@@ -617,7 +651,18 @@ function LeadSearchHistoryPage() {
                             </span>
                           </td>
                           <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
-                            {formatRating(lead.rating)}
+                            {lead.platform === "LinkedIn" && (lead?.followerCount || lead?.connectionCount) ? (
+                              <div className="flex flex-col gap-1 text-xs">
+                                <span className="inline-flex items-center gap-1 font-medium text-slate-700 bg-slate-100 rounded px-2 py-0.5 w-fit">
+                                  <strong>{lead?.followerCount ?? 0}</strong> followers
+                                </span>
+                                <span className="inline-flex items-center gap-1 font-medium text-slate-700 bg-slate-100 rounded px-2 py-0.5 w-fit">
+                                  <strong>{lead?.connectionCount ?? 0}</strong> connections
+                                </span>
+                              </div>
+                            ) : (
+                              formatRating(lead.rating)
+                            )}
                           </td>
                           <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
                             {formatDate(lead.leadCreatedOn)}
@@ -628,7 +673,7 @@ function LeadSearchHistoryPage() {
 
                     {!loading && filteredLeads.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-5 py-14 text-center">
+                        <td colSpan={platformFilter === "LinkedIn" ? 7 : 8} className="px-5 py-14 text-center">
                           <p className="text-base font-bold text-slate-800">
                             No historical leads yet
                           </p>
@@ -646,7 +691,7 @@ function LeadSearchHistoryPage() {
                             key={`loading-${index}`}
                             className="animate-pulse"
                           >
-                            {Array.from({ length: 8 }).map((__, cellIndex) => (
+                            {Array.from({ length: platformFilter === "LinkedIn" ? 7 : 8 }).map((__, cellIndex) => (
                               <td
                                 key={cellIndex}
                                 className="border-b border-slate-100 px-4 py-4"

@@ -474,6 +474,7 @@ function LeadSearchPage() {
   const [error, setError] = useState('')
   const [leads, setLeads] = useState([])
   const [totalLeads, setTotalLeads] = useState(0)
+  const [searchStateByPlatform, setSearchStateByPlatform] = useState({})
   const [selectedRows, setSelectedRows] = useState({})
   const [enrichLoadingByRow, setEnrichLoadingByRow] = useState({})
   const [enrichEmailsByRow, setEnrichEmailsByRow] = useState({})
@@ -495,6 +496,9 @@ function LeadSearchPage() {
     () => Object.values(selectedRows).filter(Boolean).length,
     [selectedRows],
   )
+  const selectedPlatformSearchState = searchStateByPlatform[selectedSource]
+  const hasSearchedSelectedPlatform = Boolean(selectedPlatformSearchState?.hasSearched)
+  const shouldShowResultsTable = !loading && hasSearchedSelectedPlatform && leads.length > 0
 
   const selectedExportModule = useMemo(
     () => exportModules.find((module) => module.value === exportModule),
@@ -669,6 +673,17 @@ function LeadSearchPage() {
     }
   }, [availablePlatformIds, selectedSource])
 
+  useEffect(() => {
+    const cachedState = searchStateByPlatform[selectedSource]
+    setLeads(cachedState?.leads || [])
+    setTotalLeads(cachedState?.totalLeads || 0)
+    setSelectedRows({})
+    setEnrichEmailsByRow({})
+    setEnrichCompletedByRow({})
+    setEnrichLoadingByRow({})
+    setCurrentPage(1)
+  }, [searchStateByPlatform, selectedSource])
+
   const handleToggleEmailType = (type) => {
     setEmailTypes((prev) => {
       if (prev.includes(type)) {
@@ -753,8 +768,17 @@ function LeadSearchPage() {
 
       const rawList = Array.isArray(payload?.Leads) ? payload.Leads : Array.isArray(payload?.leads) ? payload.leads : []
       const list = rawList.map(normalizeLookupLead)
+      const resolvedTotalLeads = Number(payload?.TotalLeads ?? payload?.totalEmails) || list.length
       setLeads(list)
-      setTotalLeads(Number(payload?.TotalLeads ?? payload?.totalEmails) || list.length)
+      setTotalLeads(resolvedTotalLeads)
+      setSearchStateByPlatform((prev) => ({
+        ...prev,
+        [selectedSource]: {
+          hasSearched: true,
+          leads: list,
+          totalLeads: resolvedTotalLeads,
+        },
+      }))
       setSelectedRows({})
       setEnrichEmailsByRow({})
       setEnrichCompletedByRow({})
@@ -776,6 +800,14 @@ function LeadSearchPage() {
     } catch (requestError) {
       setLeads([])
       setTotalLeads(0)
+      setSearchStateByPlatform((prev) => ({
+        ...prev,
+        [selectedSource]: {
+          hasSearched: true,
+          leads: [],
+          totalLeads: 0,
+        },
+      }))
       setSelectedRows({})
       setEnrichEmailsByRow({})
       setEnrichCompletedByRow({})
@@ -1075,7 +1107,11 @@ function LeadSearchPage() {
                   <div>
                     <h3 className="text-lg font-semibold text-slate-900">Search Results</h3>
                     <p className="text-sm text-slate-500">
-                      {loading ? 'Fetching results from Zoho CRM...' : `${totalLeads} leads found`}
+                      {loading
+                        ? 'Fetching results from Zoho CRM...'
+                        : hasSearchedSelectedPlatform
+                          ? `${totalLeads} leads found`
+                          : 'Select a platform and run a search'}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1102,6 +1138,8 @@ function LeadSearchPage() {
                   <p className="px-5 py-4 text-sm font-medium text-red-600">{error}</p>
                 ) : null}
 
+                {shouldShowResultsTable ? (
+                  <>
                 <div className="overflow-x-auto">
                   <table className="min-w-[1120px] w-full border-separate border-spacing-0">
                     <thead>
@@ -1238,13 +1276,6 @@ function LeadSearchPage() {
                           </tr>
                         )
                       })}
-                      {!loading && leads.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-500">
-                            Start a search to load leads from Zoho CRM.
-                          </td>
-                        </tr>
-                      ) : null}
                     </tbody>
                   </table>
                 </div>
@@ -1273,6 +1304,53 @@ function LeadSearchPage() {
                     </div>
                   </div>
                 ) : null}
+                  </>
+                ) : (
+                  <div className="px-5 py-8">
+                    <div className="relative overflow-hidden rounded-xl border border-cyan-100 bg-gradient-to-br from-cyan-50 via-white to-slate-50 px-6 py-10 text-center">
+                      <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-full bg-cyan-100/60" />
+                      <div className="absolute bottom-0 left-0 h-24 w-24 rounded-tr-full bg-slate-100" />
+                      <div className="relative mx-auto flex max-w-xl flex-col items-center">
+                        <span className="inline-flex size-14 items-center justify-center rounded-2xl bg-cyan-600 text-white shadow-sm shadow-cyan-200">
+                          {loading ? (
+                            <svg className="size-6 animate-spin" viewBox="0 0 24 24" fill="none">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              />
+                            </svg>
+                          ) : (
+                            <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="1.8">
+                              <circle cx="11" cy="11" r="7" />
+                              <path d="m20 20-3.5-3.5" />
+                              <path d="M11 8v6" />
+                              <path d="M8 11h6" />
+                            </svg>
+                          )}
+                        </span>
+                        <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-700">
+                          {loading ? 'Searching CRM' : hasSearchedSelectedPlatform ? 'No Matches Yet' : 'Ready When You Are'}
+                        </p>
+                        <h4 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+                          {loading
+                            ? `Looking for ${selectedSource} leads`
+                            : hasSearchedSelectedPlatform
+                              ? 'No leads found for this platform'
+                              : 'Choose filters and launch a search'}
+                        </h4>
+                        {loading || hasSearchedSelectedPlatform ? (
+                        <p className="mt-3 max-w-md text-sm leading-6 text-slate-500">
+                          {loading
+                            ? 'We are checking the selected source and preparing your lead table.'
+                            : 'Try a broader keyword, adjust email filters, or switch back to a platform that already has saved results.'}
+                        </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </section>
             </main>
 
