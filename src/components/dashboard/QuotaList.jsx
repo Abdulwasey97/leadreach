@@ -19,7 +19,7 @@ function buildUsageQuotas(usageDetails) {
       platform: "LinkedIn Search",
       value: usageDetails.LinkedinSearchLimitUtilized || 0,
       max: usageDetails.TotalLinkedinSearchLimit || 0,
-      color: "bg-sky-500",
+      color: "bg-cyan-500",
     },
     {
       id: "facebook",
@@ -63,7 +63,7 @@ function QuotaList({ usageDetails }) {
 
   return (
     <section
-      className={`flex pb-10 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-all duration-500 ${
+      className={`flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-5 pb-10 shadow-sm transition-all duration-500 ${
         isVisible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
       }`}
     >
@@ -72,7 +72,7 @@ function QuotaList({ usageDetails }) {
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">
             Quota health
           </p>
-          <h3 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+          <h3 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
             Platform Quotas
           </h3>
         </div>

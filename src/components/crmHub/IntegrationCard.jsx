@@ -148,6 +148,7 @@ function IntegrationCard({ integration }) {
       localStorage.removeItem('zoho_integration_response')
       localStorage.removeItem('zoho_integration_list_response')
       localStorage.removeItem('zoho_integration_list')
+      localStorage.removeItem('integration_access_token')
       localStorage.removeItem('zoho_integration_error')
       setIsZohoConnected(false)
       setShowDisconnectAction(false)

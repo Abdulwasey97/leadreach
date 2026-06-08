@@ -403,16 +403,16 @@ function LeadSearchHistoryPage() {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex-1 space-y-5 p-5">
-            <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-700">
+            <header className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700">
                 Acquisition Archive
               </p>
-              <h2 className="mt-1 text-4xl font-bold tracking-tight text-slate-800">
+              <h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
                 Lead Search History
               </h2>
             </header>
 
-            <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
                 <label className="relative">
                   <span className="sr-only">Filter platform</span>

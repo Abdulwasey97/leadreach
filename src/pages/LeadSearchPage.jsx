@@ -57,8 +57,123 @@ const USAGE_TYPE_TO_PLATFORM = {
   LinkedIn: 'linkedin',
 }
 
-const EXPORT_MAPPING_FIELDS = ['Business Name', 'Rating', 'Email 1', 'Email 2', 'Email 3', 'Phone', 'Website', 'Address']
-const EXPORT_CRM_FIELDS = ['Select', 'First Name', 'Last Name', 'Email', 'Phone', 'Website', 'Street', 'Rating', 'Lead Source']
+const EXPORT_MAPPING_FIELDS = ['Name', 'Phone', 'Website', 'Email', 'Address', 'Rating']
+const EXPORT_CRM_FIELDS = ['Select', 'Company', 'First Name', 'Last Name', 'Email', 'Phone', 'Website', 'Street', 'Rating', 'Lead Source']
+const DEFAULT_EXPORT_FIELD_MAPPINGS = {
+  Name: 'Company',
+  Phone: 'Phone',
+  Website: 'Website',
+  Email: 'Email',
+  Address: 'Street',
+  Rating: 'Rating',
+}
+const EXPORT_MODULES = [
+  { label: 'Leads', value: 'Leads' },
+  { label: 'Contacts', value: 'Contacts' },
+  { label: 'Accounts', value: 'Accounts' },
+  { label: 'Deals', value: 'Deals' },
+]
+
+function normalizeModuleList(payload) {
+  const source =
+    payload?.ModuleList ||
+    payload?.Module_List ||
+    payload?.Modules ||
+    payload?.modules ||
+    payload?.data ||
+    payload
+
+  if (!Array.isArray(source)) {
+    return []
+  }
+
+  return source
+    .map((module) => {
+      if (typeof module === 'string') {
+        return { label: module, value: module }
+      }
+
+      const label =
+        module?.ModuleName ||
+        module?.moduleName ||
+        module?.displayName ||
+        module?.DisplayName ||
+        module?.module_label ||
+        module?.name ||
+        module?.Name ||
+        module?.apiName ||
+        module?.APIName
+      const value =
+        module?.ModuleApiName ||
+        module?.moduleApiName ||
+        module?.module_api_name ||
+        module?.apiName ||
+        module?.APIName ||
+        module?.ModuleName ||
+        module?.moduleName ||
+        label
+
+      if (!label || !value) {
+        return null
+      }
+
+      return { label, value }
+    })
+    .filter(Boolean)
+    .filter((module) => module.value !== 'Actions_Performed')
+    .filter((module, index, modules) => modules.findIndex((item) => item.value === module.value) === index)
+}
+
+function normalizeFieldList(payload) {
+  const source =
+    payload?.FieldList ||
+    payload?.Field_List ||
+    payload?.Fields ||
+    payload?.fields ||
+    payload?.data ||
+    payload
+
+  if (!Array.isArray(source)) {
+    return []
+  }
+
+  return source
+    .map((field) => {
+      if (typeof field === 'string') {
+        return { label: field, value: field }
+      }
+
+      const label =
+        field?.FieldName ||
+        field?.fieldName ||
+        field?.displayName ||
+        field?.DisplayName ||
+        field?.field_Label ||
+        field?.label ||
+        field?.Label ||
+        field?.name ||
+        field?.Name ||
+        field?.apiName ||
+        field?.APIName
+      const value =
+        field?.FieldApiName ||
+        field?.fieldApiName ||
+        field?.field_api_name ||
+        field?.apiName ||
+        field?.APIName ||
+        field?.FieldName ||
+        field?.fieldName ||
+        label
+
+      if (!label || !value) {
+        return null
+      }
+
+      return { label, value }
+    })
+    .filter(Boolean)
+    .filter((field, index, fields) => fields.findIndex((item) => item.value === field.value) === index)
+}
 
 function SortIcon() {
   return (
@@ -234,6 +349,72 @@ const getWalletIdentifierFromStorage = () => {
   )
 }
 
+const findNestedValue = (source, keys) => {
+  if (!source || typeof source !== 'object') {
+    return ''
+  }
+
+  for (const key of keys) {
+    if (source[key]) {
+      return source[key]
+    }
+  }
+
+  for (const value of Object.values(source)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const nestedValue = findNestedValue(item, keys)
+        if (nestedValue) {
+          return nestedValue
+        }
+      }
+    } else if (value && typeof value === 'object') {
+      const nestedValue = findNestedValue(value, keys)
+      if (nestedValue) {
+        return nestedValue
+      }
+    }
+  }
+
+  return ''
+}
+
+const getIntegrationOrgIdentifierFromStorage = () =>
+  localStorage.getItem('module_list_org_identifier') ||
+  localStorage.getItem('field_list_org_identifier') ||
+  localStorage.getItem('organization_identifier') ||
+  import.meta.env.VITE_MODULE_LIST_ORG_IDENTIFIER ||
+  import.meta.env.VITE_FIELD_LIST_ORG_IDENTIFIER ||
+  ''
+
+const getIntegrationAccessTokenFromStorage = () => {
+  const directToken =
+    localStorage.getItem('integration_access_token') ||
+    localStorage.getItem('field_list_integration_access_token') ||
+    import.meta.env.VITE_INTEGRATION_ACCESS_TOKEN ||
+    import.meta.env.VITE_FIELD_LIST_INTEGRATION_ACCESS_TOKEN ||
+    ''
+
+  if (directToken) {
+    return directToken
+  }
+
+  const integrationList = safeParseJson(localStorage.getItem('zoho_integration_list') || '[]')
+  const integrationListResponse = safeParseJson(localStorage.getItem('zoho_integration_list_response') || '{}')
+  const tokenKeys = [
+    'integrationAccessToken',
+    'IntegrationAccessToken',
+    'accessToken',
+    'AccessToken',
+    'access_token',
+    'access_Token',
+    'token',
+    'Token',
+  ]
+
+  return findNestedValue(integrationList, tokenKeys) || findNestedValue(integrationListResponse, tokenKeys) || ''
+}
+
 async function postUpdateUsage(apiBaseUrl, { orgIdentifier, walletIdentifier, usageType }) {
   const usageResponse = await fetch(`${apiBaseUrl}/api/Org/v1/Update_Usage`, {
     method: 'POST',
@@ -301,10 +482,23 @@ function LeadSearchPage() {
   const [showExportModal, setShowExportModal] = useState(false)
   const [exportModule, setExportModule] = useState('')
   const [exportStep, setExportStep] = useState(1)
+  const [exportModules, setExportModules] = useState(EXPORT_MODULES)
+  const [exportModulesLoading, setExportModulesLoading] = useState(false)
+  const [exportModulesError, setExportModulesError] = useState('')
+  const [crmFields, setCrmFields] = useState(EXPORT_CRM_FIELDS.map((field) => ({ label: field, value: field })))
+  const [crmFieldsLoading, setCrmFieldsLoading] = useState(false)
+  const [crmFieldsError, setCrmFieldsError] = useState('')
+  const [exportFieldMappings, setExportFieldMappings] = useState(DEFAULT_EXPORT_FIELD_MAPPINGS)
+  const [exportSubmitting, setExportSubmitting] = useState(false)
 
   const selectedCount = useMemo(
     () => Object.values(selectedRows).filter(Boolean).length,
     [selectedRows],
+  )
+
+  const selectedExportModule = useMemo(
+    () => exportModules.find((module) => module.value === exportModule),
+    [exportModule, exportModules],
   )
 
   const [currentPage, setCurrentPage] = useState(1)
@@ -313,6 +507,123 @@ function LeadSearchPage() {
     const startIndex = (currentPage - 1) * PAGE_SIZE
     return leads.slice(startIndex, startIndex + PAGE_SIZE)
   }, [currentPage, leads])
+
+  useEffect(() => {
+    if (!showExportModal) {
+      return undefined
+    }
+
+    const controller = new AbortController()
+    const moduleListApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44352'
+
+    const fetchExportModules = async () => {
+      setExportModulesLoading(true)
+      setExportModulesError('')
+
+      try {
+        const response = await fetch(`${moduleListApiBaseUrl}/api/Integration/v1/Module_List`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            DataCenter: 'crm.zoho.com',
+            referer: 'https://localhost:44352',
+          },
+          body: JSON.stringify({
+            orgIdentifier: getIntegrationOrgIdentifierFromStorage(),
+            integrationAccessToken: getIntegrationAccessTokenFromStorage(),
+          }),
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          throw new Error(`Module_List failed (${response.status})`)
+        }
+
+        const payload = await response.json()
+        const modules = normalizeModuleList(payload)
+
+        if (!modules.length) {
+          throw new Error('No modules were returned')
+        }
+
+        setExportModules(modules)
+      } catch (requestError) {
+        if (requestError instanceof Error && requestError.name === 'AbortError') {
+          return
+        }
+
+        setExportModules(EXPORT_MODULES)
+        setExportModulesError(requestError instanceof Error ? requestError.message : 'Module_List request failed')
+      } finally {
+        if (!controller.signal.aborted) {
+          setExportModulesLoading(false)
+        }
+      }
+    }
+
+    fetchExportModules()
+
+    return () => controller.abort()
+  }, [showExportModal])
+
+  useEffect(() => {
+    if (!showExportModal || exportStep !== 2) {
+      return undefined
+    }
+
+    const controller = new AbortController()
+    const fieldListApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44352'
+
+    const fetchCrmFields = async () => {
+      setCrmFieldsLoading(true)
+      setCrmFieldsError('')
+
+      try {
+        const response = await fetch(`${fieldListApiBaseUrl}/api/Integration/v1/Field_List`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            DataCenter: 'crm.zoho.com',
+            referer: 'https://localhost:44352',
+          },
+          body: JSON.stringify({
+            orgIdentifier: getIntegrationOrgIdentifierFromStorage(),
+            integrationAccessToken: getIntegrationAccessTokenFromStorage(),
+            moduleName: exportModule,
+          }),
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          throw new Error(`Field_List failed (${response.status})`)
+        }
+
+        const payload = await response.json()
+        const fields = normalizeFieldList(payload)
+
+        if (!fields.length) {
+          throw new Error('No fields were returned')
+        }
+
+        setCrmFields([{ label: 'Select', value: 'Select' }, ...fields])
+      } catch (requestError) {
+        if (requestError instanceof Error && requestError.name === 'AbortError') {
+          return
+        }
+
+        setCrmFields(EXPORT_CRM_FIELDS.map((field) => ({ label: field, value: field })))
+        setCrmFieldsError(requestError instanceof Error ? requestError.message : 'Field_List request failed')
+      } finally {
+        if (!controller.signal.aborted) {
+          setCrmFieldsLoading(false)
+        }
+      }
+    }
+
+    fetchCrmFields()
+
+    return () => controller.abort()
+  }, [exportModule, exportStep, showExportModal])
   const currentPageRowKeys = useMemo(
     () =>
       paginatedLeads.map((lead, index) => {
@@ -498,9 +809,67 @@ function LeadSearchPage() {
     }))
   }
 
+  const getExportRowKey = (lead, index) => {
+    const id = getLeadIdentifier(lead)
+    const label = getLeadDisplayName(lead)
+    return id ? `${id}-${label}` : `${label}-${index}`
+  }
+
+  const getExportSourceValue = (lead, field, rowKey) => {
+    if (field === 'Name') {
+      return getLeadDisplayName(lead) === '-' ? '' : getLeadDisplayName(lead)
+    }
+
+    if (field === 'Phone') {
+      return getLeadPhone(lead) === '-' ? '' : getLeadPhone(lead)
+    }
+
+    if (field === 'Website') {
+      return getLeadWebsite(lead)
+    }
+
+    if (field === 'Email') {
+      return getLeadEmails(lead, enrichEmailsByRow[rowKey] || [])[0] || ''
+    }
+
+    if (field === 'Address') {
+      return getLeadAddress(lead) === '-' ? '' : getLeadAddress(lead)
+    }
+
+    if (field === 'Rating') {
+      return getLeadRatingLabel(lead)
+    }
+
+    return ''
+  }
+
+  const buildExportData = () => {
+    const selectedLeads = leads
+      .map((lead, index) => ({ lead, rowKey: getExportRowKey(lead, index) }))
+      .filter(({ rowKey }) => selectedCount === 0 || selectedRows[rowKey])
+
+    return selectedLeads
+      .map(({ lead, rowKey }) => {
+        const mappedRecord = {}
+
+        EXPORT_MAPPING_FIELDS.forEach((field) => {
+          const crmField = exportFieldMappings[field]
+          if (!crmField || crmField === 'Select') {
+            return
+          }
+
+          mappedRecord[crmField] = getExportSourceValue(lead, field, rowKey)
+        })
+
+        return mappedRecord
+      })
+      .filter((record) => Object.keys(record).length > 0)
+  }
+
   const handleOpenExportModal = () => {
     setExportModule('')
     setExportStep(1)
+    setExportFieldMappings(DEFAULT_EXPORT_FIELD_MAPPINGS)
     setShowExportModal(true)
   }
 
@@ -509,7 +878,7 @@ function LeadSearchPage() {
     setExportStep(1)
   }
 
-  const handleExportNext = () => {
+  const handleExportNext = async () => {
     if (exportStep === 1) {
       setExportStep(2)
       return
@@ -520,16 +889,68 @@ function LeadSearchPage() {
       return
     }
 
-    window.dispatchEvent(
-      new CustomEvent('zoho-toast', {
-        detail: {
-          type: 'success',
-          message: `Ready to export ${selectedCount || leads.length} lead${(selectedCount || leads.length) === 1 ? '' : 's'} to ${exportModule}.`,
+    const dataToExport = buildExportData()
+    if (!dataToExport.length) {
+      window.dispatchEvent(new CustomEvent('zoho-toast', { detail: { type: 'error', message: 'No lead data is available to export.' } }))
+      return
+    }
+
+    setExportSubmitting(true)
+
+    try {
+      const exportApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44352'
+      const integrationAccessToken = getIntegrationAccessTokenFromStorage()
+      if (!integrationAccessToken) {
+        throw new Error('Missing integration access token. Please reconnect Zoho and try again.')
+      }
+
+      const response = await fetch(`${exportApiBaseUrl}/api/Integration/ExportToCrm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      }),
-    )
-    setShowExportModal(false)
-    setExportStep(1)
+        body: JSON.stringify({
+          integrationType: 'Zoho',
+          integrationAccessToken,
+          moduleName: exportModule,
+          dataToExport,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`ExportToCrm failed (${response.status})`)
+      }
+
+      const payload = await response.json().catch(() => ({}))
+      const exportFailed =
+        payload?.Code === 500 ||
+        (payload?.Status && String(payload.Status).toLowerCase() !== 'success' && payload.Code !== 200)
+
+      if (exportFailed) {
+        throw new Error(payload?.Reason || 'ExportToCrm failed')
+      }
+
+      window.dispatchEvent(
+        new CustomEvent('zoho-toast', {
+          detail: {
+            type: 'success',
+            message:
+              payload?.Reason ||
+              `Exported ${dataToExport.length} lead${dataToExport.length === 1 ? '' : 's'} to ${selectedExportModule?.label || exportModule}.`,
+          },
+        }),
+      )
+      setShowExportModal(false)
+      setExportStep(1)
+    } catch (exportError) {
+      window.dispatchEvent(
+        new CustomEvent('zoho-toast', {
+          detail: { type: 'error', message: exportError instanceof Error ? exportError.message : 'ExportToCrm request failed' },
+        }),
+      )
+    } finally {
+      setExportSubmitting(false)
+    }
   }
 
   const handleEnrichEmail = async (lead, rowKey) => {
@@ -633,7 +1054,7 @@ function LeadSearchPage() {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex flex-1 p-5">
-            <main className="w-full min-w-0 space-y-4">
+            <main className="w-full min-w-0 space-y-5">
               <AdvancedFilteringCard
                 platforms={platformTargets}
                 selectedSource={selectedSource}
@@ -649,7 +1070,7 @@ function LeadSearchPage() {
                 emailTypeOptions={EMAIL_TYPES_BY_CATEGORY[emailCategory] || []}
                 onToggleEmailType={handleToggleEmailType}
               />
-              <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+              <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-900">Search Results</h3>
@@ -856,14 +1277,19 @@ function LeadSearchPage() {
             </main>
 
             {showExportModal ? (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
-                <div className="w-full max-w-3xl overflow-hidden rounded-lg bg-white shadow-2xl">
-                  <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-                    <h3 className="text-2xl font-bold text-sky-700">Import Data</h3>
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-[2px]">
+                <div className="w-full max-w-3xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-5 py-4">
+                    <div>
+                      <h3 className="text-2xl font-bold text-cyan-700">Import Data</h3>
+                      <p className="mt-1 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
+                        Step {exportStep} of 3
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={handleCloseExportModal}
-                      className="inline-flex size-9 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                      className="inline-flex size-9 items-center justify-center rounded-md border border-transparent text-slate-500 transition hover:border-slate-200 hover:bg-white hover:text-slate-900"
                       aria-label="Close export modal"
                     >
                       <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -874,9 +1300,9 @@ function LeadSearchPage() {
                   </div>
 
                   {exportStep === 1 ? (
-                    <div className="px-7 py-10">
+                    <div className="bg-white px-7 py-10">
                       <div className="mx-auto max-w-xs text-center">
-                        <label htmlFor="export-module" className="text-xl font-bold text-sky-700">
+                        <label htmlFor="export-module" className="text-xl font-bold text-cyan-700">
                           Select Module
                         </label>
                         <div className="relative mt-3">
@@ -884,13 +1310,15 @@ function LeadSearchPage() {
                             id="export-module"
                             value={exportModule}
                             onChange={(event) => setExportModule(event.target.value)}
-                            className="h-11 w-full cursor-pointer appearance-none rounded-md border border-slate-200 bg-slate-50 px-3 pr-10 text-sm font-medium text-slate-700 outline-none transition hover:border-cyan-200 focus:border-cyan-400"
+                            disabled={exportModulesLoading}
+                            className="h-11 w-full cursor-pointer appearance-none rounded-md border border-slate-200 bg-white px-3 pr-10 text-sm font-medium text-slate-700 shadow-sm outline-none transition hover:border-cyan-200 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 disabled:cursor-wait disabled:bg-slate-50"
                           >
-                            <option value="">Select</option>
-                            <option value="Leads">Leads</option>
-                            <option value="Contacts">Contacts</option>
-                            <option value="Accounts">Accounts</option>
-                            <option value="Deals">Deals</option>
+                            <option value="">{exportModulesLoading ? 'Loading modules...' : 'Select'}</option>
+                            {exportModules.map((module) => (
+                              <option key={module.value} value={module.value}>
+                                {module.label}
+                              </option>
+                            ))}
                           </select>
                           <svg
                             viewBox="0 0 20 20"
@@ -902,18 +1330,19 @@ function LeadSearchPage() {
                             <path d="m6 8 4 4 4-4" />
                           </svg>
                         </div>
+                        {exportModulesError ? <p className="mt-2 text-xs text-amber-700">{exportModulesError}</p> : null}
                       </div>
 
-                      <div className="mt-6 flex items-start justify-between gap-4 bg-amber-100 px-5 py-4 text-sm leading-7 text-slate-700">
-                        <p>
-                          It is recommended to setup <span className="font-bold">Decimal Fields</span> for mapping{' '}
-                          <span className="font-bold">Latitude</span>, <span className="font-bold">Longitude</span>,{' '}
-                          <span className="font-bold">Rating</span> etc in your{' '}
-                          <span className="font-bold">CRM Module</span> before attempting data import.
+                      <div className="mt-6 flex items-start justify-between gap-4 rounded-lg border border-cyan-100 bg-cyan-50 px-5 py-4 text-sm leading-7 text-slate-700 shadow-sm">
+                        <p className="border-l-2 border-cyan-400 pl-4">
+                          It is recommended to setup <span className="font-bold text-slate-900">Decimal Fields</span> for mapping{' '}
+                          <span className="font-bold text-slate-900">Latitude</span>, <span className="font-bold text-slate-900">Longitude</span>,{' '}
+                          <span className="font-bold text-slate-900">Rating</span> etc in your{' '}
+                          <span className="font-bold text-slate-900">CRM Module</span> before attempting data import.
                         </p>
                         <button
                           type="button"
-                          className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center text-slate-700 hover:text-slate-950"
+                          className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-md text-slate-500 transition hover:bg-white hover:text-cyan-700"
                           aria-label="Dismiss export recommendation"
                         >
                           <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -924,14 +1353,14 @@ function LeadSearchPage() {
                       </div>
                     </div>
                   ) : exportStep === 2 ? (
-                    <div className="px-7 py-5">
-                      <div className="flex items-start justify-between gap-4 rounded-md bg-amber-100 px-5 py-3 text-sm text-amber-900">
+                    <div className="bg-white px-7 py-5">
+                      <div className="flex items-start justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900">
                         <p>
                           You must map <span className="font-semibold">"Last Name"</span> because these are the required fields in this module.
                         </p>
                         <button
                           type="button"
-                          className="inline-flex size-6 shrink-0 items-center justify-center text-amber-900 hover:text-slate-950"
+                          className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-amber-900 transition hover:bg-amber-100 hover:text-slate-950"
                           aria-label="Dismiss required field warning"
                         >
                           <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -941,20 +1370,30 @@ function LeadSearchPage() {
                         </button>
                       </div>
 
-                      <h4 className="mt-4 text-sm font-bold text-slate-800">{exportModule} ( Mapping )</h4>
-                      <div className="mt-3 max-h-[260px] overflow-y-auto rounded-lg border border-slate-200">
-                        {EXPORT_MAPPING_FIELDS.map((field, index) => (
-                          <div key={field} className="grid grid-cols-[1fr_1.45fr] items-center border-b border-slate-100 last:border-b-0">
-                            <div className="px-4 py-3 text-sm font-medium text-slate-700">{field}</div>
-                            <div className="px-4 py-2">
+                      <h4 className="mt-4 text-sm font-bold text-slate-800">
+                        {selectedExportModule?.label || exportModule} ( Mapping )
+                      </h4>
+                      <div className="mt-3 max-h-[260px] overflow-y-auto rounded-lg border border-slate-200 shadow-sm">
+                        {EXPORT_MAPPING_FIELDS.map((field) => (
+                          <div key={field} className="grid grid-cols-[1fr_1.45fr] items-center border-b border-slate-100 bg-white last:border-b-0 hover:bg-slate-50/70">
+                            <div className="px-4 py-3 text-sm font-semibold text-slate-700">{field}</div>
+                            <div className="border-l border-slate-100 px-4 py-2">
                               <div className="relative">
                                 <select
-                                  defaultValue={index === 0 ? 'First Name' : index === 1 ? 'Last Name' : index === 2 ? 'Email' : 'Select'}
-                                  className="h-10 w-full cursor-pointer appearance-none rounded-md border border-slate-200 bg-white px-3 pr-10 text-sm text-slate-700 outline-none transition hover:border-cyan-200 focus:border-cyan-400"
+                                  value={exportFieldMappings[field] || 'Select'}
+                                  onChange={(event) =>
+                                    setExportFieldMappings((prev) => ({
+                                      ...prev,
+                                      [field]: event.target.value,
+                                    }))
+                                  }
+                                  disabled={crmFieldsLoading}
+                                  className="h-10 w-full cursor-pointer appearance-none rounded-md border border-slate-200 bg-white px-3 pr-10 text-sm text-slate-700 outline-none transition hover:border-cyan-200 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 disabled:cursor-wait disabled:bg-slate-50"
                                 >
-                                  {EXPORT_CRM_FIELDS.map((crmField) => (
-                                    <option key={crmField} value={crmField}>
-                                      {crmField}
+                                  {crmFieldsLoading ? <option value="">Loading fields...</option> : null}
+                                  {crmFields.map((crmField) => (
+                                    <option key={crmField.value} value={crmField.value}>
+                                      {crmField.label}
                                     </option>
                                   ))}
                                 </select>
@@ -972,20 +1411,22 @@ function LeadSearchPage() {
                           </div>
                         ))}
                       </div>
+                      {crmFieldsError ? <p className="mt-2 text-xs text-amber-700">{crmFieldsError}</p> : null}
                     </div>
                   ) : (
-                    <div className="px-7 py-10">
+                    <div className="bg-white px-7 py-10">
                       <div className="mx-auto max-w-sm text-center">
-                        <h4 className="text-xl font-bold text-sky-700">Summary</h4>
-                        <div className="mt-7 space-y-7 text-base">
-                          <p className="text-slate-500">
-                            <span className="font-bold text-slate-800">Selected Module:</span> {exportModule}
+                        <h4 className="text-xl font-bold text-cyan-700">Summary</h4>
+                        <div className="mt-7 space-y-4 rounded-lg border border-slate-200 bg-slate-50 px-5 py-5 text-base shadow-sm">
+                          <p className="text-slate-600">
+                            <span className="font-bold text-slate-800">Selected Module:</span>{' '}
+                            {selectedExportModule?.label || exportModule}
                           </p>
-                          <p className="text-slate-500">
+                          <p className="text-slate-600">
                             <span className="font-bold text-slate-800">Review Locale:</span> Field{' '}
                             <span className="text-slate-700">✓</span>
                           </p>
-                          <p className="text-slate-500">
+                          <p className="text-slate-600">
                             <span className="font-bold text-slate-800">Records Selected:</span>{' '}
                             {selectedCount || leads.length}
                           </p>
@@ -994,12 +1435,12 @@ function LeadSearchPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
+                  <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50/80 px-5 py-4">
                     {exportStep > 1 ? (
                       <button
                         type="button"
                         onClick={() => setExportStep((prev) => Math.max(1, prev - 1))}
-                        className="rounded-full border border-sky-300 px-5 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-50"
+                        className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50 hover:text-cyan-700"
                       >
                         Previous
                       </button>
@@ -1007,14 +1448,14 @@ function LeadSearchPage() {
                     <button
                       type="button"
                       onClick={handleExportNext}
-                      disabled={exportStep === 1 && !exportModule}
-                      className={`rounded-full border px-5 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                      disabled={(exportStep === 1 && !exportModule) || exportSubmitting}
+                      className={`rounded-full border px-5 py-2 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
                         exportStep === 3
                           ? 'border-rose-300 bg-rose-50 text-rose-600 hover:bg-rose-100'
-                          : 'border-sky-300 text-sky-700 hover:bg-sky-50'
+                          : 'border-cyan-200 bg-white text-cyan-700 hover:border-cyan-300 hover:bg-cyan-50'
                       }`}
                     >
-                      {exportStep === 3 ? 'Import' : 'Next'}
+                      {exportSubmitting ? 'Importing...' : exportStep === 3 ? 'Import' : 'Next'}
                     </button>
                   </div>
                 </div>

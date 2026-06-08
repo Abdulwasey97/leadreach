@@ -1,5 +1,4 @@
 import ActiveIntegrationsSection from '../components/crmHub/ActiveIntegrationsSection'
-import CrmHubRightRail from '../components/crmHub/CrmHubRightRail'
 
 import Sidebar from '../components/layout/Sidebar'
 
@@ -10,23 +9,20 @@ function CrmHubPage() {
         <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="grid flex-1 gap-5 p-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-            <main className="space-y-4">
-              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex-1 p-5">
+            <main className="space-y-5">
+              <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-4xl font-bold tracking-tight text-slate-800">CRM Connections</h2>
-                    <p className="max-w-2xl text-slate-500">Manage your enterprise data bridge and synchronization logic.</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700">Integration Suite</p>
+                    <h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">CRM Connections</h2>
+                    <p className="mt-1 max-w-2xl text-sm text-slate-500">Manage your enterprise data bridge and synchronization logic.</p>
                   </div>
-                
                 </div>
               </section>
 
               <ActiveIntegrationsSection />
-             
             </main>
-
-            <CrmHubRightRail />
           </div>
         </div>
       </div>

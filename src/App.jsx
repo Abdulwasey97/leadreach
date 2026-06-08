@@ -14,6 +14,16 @@ function hasConnectedIntegration(payload) {
   return Array.isArray(integrations) && integrations.length > 0
 }
 
+function getIntegrationAccessToken(payload) {
+  const integrations = payload?.IntegrationList
+  if (!Array.isArray(integrations)) {
+    return ''
+  }
+
+  const integration = integrations.find((item) => item?.access_Token) || integrations[0]
+  return integration?.access_Token || ''
+}
+
 function isKnownAppPath(pathname) {
   const normalizedPath = pathname.replace(/\/+$/, '') || '/'
   return normalizedPath === '/' || Object.values(ROUTES).includes(normalizedPath)
@@ -373,6 +383,7 @@ function App() {
 
         localStorage.setItem('zoho_integration_list_response', JSON.stringify(integrationListPayload))
         localStorage.setItem('zoho_integration_list', JSON.stringify(integrationListPayload?.IntegrationList || []))
+        localStorage.setItem('integration_access_token', getIntegrationAccessToken(integrationListPayload))
         localStorage.setItem('zoho_connected', hasConnectedIntegration(integrationListPayload) ? 'true' : 'false')
         localStorage.removeItem('zoho_integration_error')
         window.dispatchEvent(new Event('zoho-connection-updated'))
@@ -465,6 +476,7 @@ function App() {
 
           localStorage.setItem('zoho_integration_list_response', JSON.stringify(retrieveListPayload))
           localStorage.setItem('zoho_integration_list', JSON.stringify(retrieveListPayload?.IntegrationList || []))
+          localStorage.setItem('integration_access_token', getIntegrationAccessToken(retrieveListPayload))
           localStorage.setItem('zoho_connected', hasConnectedIntegration(retrieveListPayload) ? 'true' : 'false')
           localStorage.removeItem('zoho_integration_error')
           window.dispatchEvent(new Event('zoho-connection-updated'))

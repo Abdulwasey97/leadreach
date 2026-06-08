@@ -10,7 +10,6 @@ const editorActions = [
 
 function HelpCenterPage() {
   const editorRef = useRef(null)
-  const [token, setToken] = useState('')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [attachmentName, setAttachmentName] = useState('')
@@ -42,34 +41,20 @@ function HelpCenterPage() {
         <Sidebar />
 
         <main className="min-w-0 flex-1 p-5">
-          <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="border-b border-slate-100 pb-5">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700">
                   Support Desk
                 </p>
-                <h2 className="mt-1 text-4xl font-bold tracking-tight text-slate-900">
+                <h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
                   Help Center
                 </h2>
               </div>
             </div>
 
-            <form className="mt-6 w-full space-y-5" onSubmit={handleSubmit}>
-              <div className="grid gap-5 lg:grid-cols-2">
-                <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                    Token
-                  </span>
-                  <input
-                    type="text"
-                    value={token}
-                    onChange={(event) => setToken(event.target.value)}
-                    placeholder="Enter support token"
-                    required
-                    className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
-                  />
-                </label>
-
+            <form className="mt-5 w-full space-y-5" onSubmit={handleSubmit}>
+              <div className="grid gap-5">
                 <label className="block">
                   <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                     Subject
@@ -137,7 +122,7 @@ function HelpCenterPage() {
               <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
                 <button
                   type="submit"
-                  disabled={!token.trim() || !subject.trim() || !message.trim()}
+                  disabled={!subject.trim() || !message.trim()}
                   className="cursor-pointer rounded-lg bg-cyan-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   Submit Request

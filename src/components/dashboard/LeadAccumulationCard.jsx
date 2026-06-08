@@ -40,10 +40,10 @@ function LeadAccumulationCard({ usageDetails }) {
   const usageSummary = buildUsageSummary(usageDetails)
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Usage trend</p>
-        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">Lead Accumulation</h2>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">Lead Accumulation</h2>
       </div>
 
       <div className="mt-4">
