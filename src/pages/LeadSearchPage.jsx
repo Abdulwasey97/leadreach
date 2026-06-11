@@ -287,10 +287,7 @@ function getLeadEmails(lead, fallbackEmails = []) {
     return fallbackEmails
   }
 
-  const enrichedEmails = Array.isArray(lead?.EnrichedEmails)
-    ? lead.EnrichedEmails.map((item) => String(item?.emailAddress || '').trim()).filter(Boolean)
-    : []
-
+  const enrichedEmails = getLeadEnrichedEmails(lead)
   if (enrichedEmails.length > 0) {
     return enrichedEmails
   }
@@ -304,6 +301,14 @@ function getLeadEmails(lead, fallbackEmails = []) {
   ]
     .map((email) => String(email || '').trim())
     .filter(Boolean)
+}
+
+function getLeadEnrichedEmails(lead) {
+  const enrichedEmails = Array.isArray(lead?.EnrichedEmails)
+    ? lead.EnrichedEmails.map((item) => String(item?.emailAddress || '').trim()).filter(Boolean)
+    : []
+
+  return enrichedEmails
 }
 
 function getLeadRatingLabel(lead) {
@@ -537,6 +542,7 @@ function LeadSearchPage() {
   const hasSearchedSelectedPlatform = Boolean(selectedPlatformSearchState?.hasSearched)
   const shouldShowResultsTable = !loading && hasSearchedSelectedPlatform && leads.length > 0
   const isLinkedInSelected = selectedSource === 'linkedin'
+  const isFacebookSelected = selectedSource === 'facebook'
   const resultTableHeadings = isLinkedInSelected
     ? ['Name', 'Email', 'Address', 'Current Company', 'Followers', 'Connections']
     : ['Name', 'Phone', 'Website', 'Email', 'Address', 'Rating']
@@ -1237,8 +1243,11 @@ function LeadSearchPage() {
                           : `${leadName}-${absoluteIndex}`
                         const isSelected = Boolean(selectedRows[rowKey])
                         const lookupEmails = getLeadEmails(lead)
-                        const emails = getLeadEmails(lead, enrichEmailsByRow[rowKey] || [])
-                        const canEnrichEmail = lookupEmails.length === 0 && !enrichCompletedByRow[rowKey]
+                        const enrichedEmails = enrichEmailsByRow[rowKey] || getLeadEnrichedEmails(lead)
+                        const emails = isFacebookSelected ? enrichedEmails : getLeadEmails(lead, enrichEmailsByRow[rowKey] || [])
+                        const canEnrichEmail = isFacebookSelected
+                          ? enrichedEmails.length === 0 && !enrichCompletedByRow[rowKey]
+                          : lookupEmails.length === 0 && !enrichCompletedByRow[rowKey]
                         const leadRating = getLeadRatingLabel(lead)
                         const leadProfileUrl = getLeadProfileUrl(lead)
                         const leadProfileImageUrl = getLeadProfileImageUrl(lead)
