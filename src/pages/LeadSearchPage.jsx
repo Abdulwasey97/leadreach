@@ -1271,7 +1271,7 @@ function LeadSearchPage() {
                               </button>
                             </td>
                           <td className="border-b border-slate-100 px-4 py-4">
-                              <div className={`flex items-center ${isLinkedInSelected ? 'justify-center gap-3' : ''}`}>
+                              <div className={`flex items-center ${isLinkedInSelected ? 'gap-3' : ''}`}>
                                 {isLinkedInSelected ? (
                                   leadProfileUrl ? (
                                     <a
