@@ -33,7 +33,7 @@ function getUserDisplayName(user) {
   const firstName = String(user?.userFirstName || '').trim()
   const lastName = String(user?.userLastName || '').trim()
   const fullName = `${firstName} ${lastName}`.trim()
-  return fullName || user?.userName || '-'
+  return fullName || user?.userName || 'N/A'
 }
 
 function SettingsPage() {
@@ -153,13 +153,13 @@ function SettingsPage() {
                             </span>
                             <div>
                               <p className="text-sm font-semibold text-slate-800">{displayName}</p>
-                              <p className="text-xs text-slate-500">{user.userEmail || '-'}</p>
+                              <p className="text-xs text-slate-500">{user.userEmail || 'N/A'}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-3">
                           <span className="inline-flex rounded bg-cyan-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-cyan-700">
-                            {user.userName || '-'}
+                            {user.userName || 'N/A'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-600">
@@ -168,8 +168,8 @@ function SettingsPage() {
                             {isActive ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-slate-500">{user.userPhone || '-'}</td>
-                        <td className="break-all px-4 py-3 text-sm text-slate-500">{user.userIdentifier || '-'}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-500">{user.userPhone || 'N/A'}</td>
+                        <td className="break-all px-4 py-3 text-sm text-slate-500">{user.userIdentifier || 'N/A'}</td>
                       </tr>
                       )
                     })}
@@ -248,23 +248,23 @@ function SettingsPage() {
                   <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                     <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">Organization Name</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-800">{organizationDetails.organizationName || '-'}</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-800">{organizationDetails.organizationName || 'N/A'}</p>
                     </div>
                     <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">Primary Email</p>
-                      <p className="mt-2 break-all text-sm font-semibold text-slate-800">{organizationDetails.organizationPrimaryEmail || '-'}</p>
+                      <p className="mt-2 break-all text-sm font-semibold text-slate-800">{organizationDetails.organizationPrimaryEmail || 'N/A'}</p>
                     </div>
                     <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">Organization Status</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-800">{organizationDetails.organizationStatus || '-'}</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-800">{organizationDetails.organizationStatus || 'N/A'}</p>
                     </div>
                     <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">Organization ID</p>
-                      <p className="mt-2 break-all text-sm font-semibold text-slate-800">{organizationDetails.organizationID || '-'}</p>
+                      <p className="mt-2 break-all text-sm font-semibold text-slate-800">{organizationDetails.organizationID || 'N/A'}</p>
                     </div>
                     <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">Organization Source</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-800">{organizationDetails.organizationSource || '-'}</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-800">{organizationDetails.organizationSource || 'N/A'}</p>
                     </div>
                   </div>
                 </article>

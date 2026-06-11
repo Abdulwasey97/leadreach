@@ -39,14 +39,14 @@ function formatLeadName(lead) {
     return `${first} ${last}`;
   }
 
-  return leadName || first || last || name || "-";
+  return leadName || first || last || name || "N/A";
 }
 
 function formatAddressPreview(address, isExpanded) {
   const value = String(address || "").trim();
 
   if (!value) {
-    return "-";
+    return "N/A";
   }
 
   if (isExpanded || value.length <= ADDRESS_PREVIEW_LENGTH) {
@@ -90,7 +90,7 @@ function formatDate(value) {
 
 function formatRating(value) {
   if (!value) {
-    return "-";
+    return "N/A";
   }
 
   const parsed = Number(value);
@@ -613,12 +613,12 @@ function LeadSearchHistoryPage() {
                             {getEnrichedEmailSummary(lead)}
                           </td>
                           {platformFilter !== "LinkedIn" && (
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
-                              {lead.platform === "LinkedIn" ? "-" : (lead.phone || "-")}
+                            <td className="whitespace-nowrap border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
+                              {lead.platform === "LinkedIn" ? "N/A" : (lead.phone || "N/A")}
                             </td>
                           )}
                           <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
-                            <div className="max-w-[260px]">
+                            <div className="max-w-[220px]">
                               <p
                                 className={
                                   isAddressExpanded
@@ -651,20 +651,20 @@ function LeadSearchHistoryPage() {
                             </span>
                           </td>
                           <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
-                            {lead.platform === "LinkedIn" && (lead?.followerCount || lead?.connectionCount) ? (
+                            {lead.platform === "LinkedIn" ? (
                               <div className="flex flex-col gap-1 text-xs">
                                 <span className="inline-flex items-center gap-1 font-medium text-slate-700 bg-slate-100 rounded px-2 py-0.5 w-fit">
-                                  <strong>{lead?.followerCount ?? 0}</strong> followers
+                                  <strong>{lead?.followerCount ?? "N/A"}</strong> followers
                                 </span>
                                 <span className="inline-flex items-center gap-1 font-medium text-slate-700 bg-slate-100 rounded px-2 py-0.5 w-fit">
-                                  <strong>{lead?.connectionCount ?? 0}</strong> connections
+                                  <strong>{lead?.connectionCount ?? "N/A"}</strong> connections
                                 </span>
                               </div>
                             ) : (
                               formatRating(lead.rating)
                             )}
                           </td>
-                          <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
+                          <td className="whitespace-nowrap border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
                             {formatDate(lead.leadCreatedOn)}
                           </td>
                         </tr>

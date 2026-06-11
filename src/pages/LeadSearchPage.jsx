@@ -219,7 +219,7 @@ function getLeadDisplayName(lead) {
   if (lead?.name != null && String(lead.name).trim() !== '') {
     return String(lead.name).trim()
   }
-  return first || last || '-'
+  return first || last || 'N/A'
 }
 
 function getLeadWebsite(lead) {
@@ -246,11 +246,35 @@ function getLeadWebsiteLabel(lead, selectedSource) {
 }
 
 function getLeadPhone(lead) {
-  return String(lead?.phone ?? lead?.Phone ?? lead?.phoneNumber ?? '').trim() || '-'
+  return String(lead?.phone ?? lead?.Phone ?? lead?.phoneNumber ?? '').trim() || 'N/A'
+}
+
+function getLeadProfileUrl(lead) {
+  const publicIdentifier = String(lead?.publicIdentifier || '').trim()
+  const linkedinProfileUrl = publicIdentifier ? `https://www.linkedin.com/in/${publicIdentifier}/` : ''
+  return String(lead?.profileUrl ?? lead?.profileURL ?? lead?.profile_url ?? linkedinProfileUrl ?? '').trim()
+}
+
+function getLeadProfileImageUrl(lead) {
+  return String(lead?.profilePictureUrl ?? lead?.profileImageUrl ?? lead?.profilePhotoUrl ?? lead?.imageUrl ?? '').trim()
+}
+
+function getLeadCurrentCompany(lead) {
+  return String(lead?.currentCompany ?? lead?.CurrentCompany ?? lead?.companyName ?? lead?.company ?? '').trim() || 'N/A'
+}
+
+function getLeadFollowerCount(lead) {
+  const value = lead?.followerCount ?? lead?.followersCount ?? lead?.followers ?? lead?.FollowerCount
+  return value != null && String(value).trim() !== '' ? String(value).trim() : 'N/A'
+}
+
+function getLeadConnectionCount(lead) {
+  const value = lead?.connectionCount ?? lead?.connectionsCount ?? lead?.connections ?? lead?.ConnectionCount
+  return value != null && String(value).trim() !== '' ? String(value).trim() : 'N/A'
 }
 
 function getLeadAddress(lead) {
-  return String(lead?.address ?? lead?.Address ?? lead?.location ?? lead?.PageIntro ?? '').trim() || '-'
+  return String(lead?.address ?? lead?.Address ?? lead?.location ?? lead?.PageIntro ?? '').trim() || 'N/A'
 }
 
 function extractEmailFromText(value) {
@@ -324,6 +348,19 @@ function pickEnrichedEmailsFromPayload(payload) {
   }
 
   return []
+}
+
+function isNoEmailsFoundPayload(payload) {
+  const reason = String(payload?.Reason || payload?.reason || '').toLowerCase()
+  const status = String(payload?.Status || payload?.status || '').toLowerCase()
+  const captured = payload?.CapturedEmails ?? payload?.capturedEmails
+
+  return (
+    Number(payload?.Code ?? payload?.code) === 404 &&
+    status === 'partial' &&
+    reason.includes('no emails found') &&
+    (!Array.isArray(captured) || captured.length === 0)
+  )
 }
 
 const safeParseJson = (value) => {
@@ -499,6 +536,10 @@ function LeadSearchPage() {
   const selectedPlatformSearchState = searchStateByPlatform[selectedSource]
   const hasSearchedSelectedPlatform = Boolean(selectedPlatformSearchState?.hasSearched)
   const shouldShowResultsTable = !loading && hasSearchedSelectedPlatform && leads.length > 0
+  const isLinkedInSelected = selectedSource === 'linkedin'
+  const resultTableHeadings = isLinkedInSelected
+    ? ['Name', 'Email', 'Address', 'Current Company', 'Followers', 'Connections']
+    : ['Name', 'Phone', 'Website', 'Email', 'Address', 'Rating']
 
   const selectedExportModule = useMemo(
     () => exportModules.find((module) => module.value === exportModule),
@@ -849,11 +890,11 @@ function LeadSearchPage() {
 
   const getExportSourceValue = (lead, field, rowKey) => {
     if (field === 'Name') {
-      return getLeadDisplayName(lead) === '-' ? '' : getLeadDisplayName(lead)
+      return getLeadDisplayName(lead) === 'N/A' ? '' : getLeadDisplayName(lead)
     }
 
     if (field === 'Phone') {
-      return getLeadPhone(lead) === '-' ? '' : getLeadPhone(lead)
+      return getLeadPhone(lead) === 'N/A' ? '' : getLeadPhone(lead)
     }
 
     if (field === 'Website') {
@@ -865,7 +906,7 @@ function LeadSearchPage() {
     }
 
     if (field === 'Address') {
-      return getLeadAddress(lead) === '-' ? '' : getLeadAddress(lead)
+      return getLeadAddress(lead) === 'N/A' ? '' : getLeadAddress(lead)
     }
 
     if (field === 'Rating') {
@@ -1019,7 +1060,7 @@ function LeadSearchPage() {
         body: JSON.stringify({
           orgIdentifier,
           leadIdentifier,
-          leadName: leadName === '-' ? '' : leadName,
+          leadName: leadName === 'N/A' ? '' : leadName,
           leadWebsite,
           leadSource,
         }),
@@ -1029,6 +1070,21 @@ function LeadSearchPage() {
       const ok = response.ok && payload?.Code === 200 && String(payload?.Status || '').toLowerCase() === 'success'
 
       if (!ok) {
+        if (isNoEmailsFoundPayload(payload)) {
+          setEnrichCompletedByRow((prev) => ({ ...prev, [rowKey]: true }))
+          setEnrichEmailsByRow((prev) => {
+            const next = { ...prev }
+            delete next[rowKey]
+            return next
+          })
+          window.dispatchEvent(
+            new CustomEvent('zoho-toast', {
+              detail: { type: 'info', message: 'No Email found for this lead' },
+            }),
+          )
+          return
+        }
+
         const message = payload?.Reason || `Enrich email failed (${response.status})`
         window.dispatchEvent(new CustomEvent('zoho-toast', { detail: { type: 'error', message } }))
         return
@@ -1160,7 +1216,7 @@ function LeadSearchPage() {
                             </svg>
                           </button>
                         </th>
-                        {['Name', 'Phone', 'Website', 'Email', 'Address', 'Rating'].map((heading) => (
+                        {resultTableHeadings.map((heading) => (
                           <th key={heading} className="border-b border-slate-200 px-4 py-3 text-left text-xs font-medium text-slate-900">
                             <span className="inline-flex items-center gap-2">
                               {heading}
@@ -1184,6 +1240,8 @@ function LeadSearchPage() {
                         const emails = getLeadEmails(lead, enrichEmailsByRow[rowKey] || [])
                         const canEnrichEmail = lookupEmails.length === 0 && !enrichCompletedByRow[rowKey]
                         const leadRating = getLeadRatingLabel(lead)
+                        const leadProfileUrl = getLeadProfileUrl(lead)
+                        const leadProfileImageUrl = getLeadProfileImageUrl(lead)
 
                         return (
                           <tr key={rowKey} className={`group transition ${isSelected ? 'bg-cyan-50/50' : 'hover:bg-slate-50'}`}>
@@ -1204,18 +1262,57 @@ function LeadSearchPage() {
                               </button>
                             </td>
                           <td className="border-b border-slate-100 px-4 py-4">
-                              <p className="max-w-[300px] text-sm font-semibold text-slate-900">{leadName}</p>
+                              <div className={`flex items-center ${isLinkedInSelected ? 'justify-center gap-3' : ''}`}>
+                                {isLinkedInSelected ? (
+                                  leadProfileUrl ? (
+                                    <a
+                                      href={leadProfileUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      title="Open LinkedIn profile"
+                                      className="inline-flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-500 transition hover:border-cyan-300"
+                                    >
+                                      {leadProfileImageUrl ? (
+                                        <img
+                                          src={leadProfileImageUrl}
+                                          alt={`${leadName} profile`}
+                                          className="size-full object-cover"
+                                        />
+                                      ) : (
+                                        leadName.slice(0, 1).toUpperCase()
+                                      )}
+                                    </a>
+                                  ) : (
+                                    <span className="inline-flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-500">
+                                      {leadProfileImageUrl ? (
+                                        <img
+                                          src={leadProfileImageUrl}
+                                          alt={`${leadName} profile`}
+                                          className="size-full object-cover"
+                                        />
+                                      ) : (
+                                        leadName.slice(0, 1).toUpperCase()
+                                      )}
+                                    </span>
+                                  )
+                                ) : null}
+                                <p className="max-w-[300px] text-sm font-semibold text-slate-900">{leadName}</p>
+                              </div>
                             </td>
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">{getLeadPhone(lead)}</td>
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm">
-                              {leadWebsite ? (
-                                <a href={leadWebsite} target="_blank" rel="noreferrer" className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 font-medium text-cyan-700 transition hover:border-cyan-200 hover:bg-cyan-50">
-                                  {getLeadWebsiteLabel(lead, selectedSource)}
-                                </a>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              )}
-                            </td>
+                            {!isLinkedInSelected ? (
+                              <>
+                                <td className="whitespace-nowrap border-b border-slate-100 px-4 py-4 text-sm text-slate-700">{getLeadPhone(lead)}</td>
+                                <td className="border-b border-slate-100 px-4 py-4 text-sm">
+                                  {leadWebsite ? (
+                                    <a href={leadWebsite} target="_blank" rel="noreferrer" className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 font-medium text-cyan-700 transition hover:border-cyan-200 hover:bg-cyan-50">
+                                      {getLeadWebsiteLabel(lead, selectedSource)}
+                                    </a>
+                                  ) : (
+                                    <span className="text-slate-400">N/A</span>
+                                  )}
+                                </td>
+                              </>
+                            ) : null}
                             <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
                               <div className="flex flex-wrap items-center gap-2">
                                 {emails.length ? (
@@ -1233,8 +1330,6 @@ function LeadSearchPage() {
                                       </a>
                                     ))}
                                   </div>
-                                ) : enrichCompletedByRow[rowKey] ? (
-                                  <span className="text-sm text-slate-400">—</span>
                                 ) : null}
                                 {canEnrichEmail ? (
                                   <button
@@ -1264,15 +1359,23 @@ function LeadSearchPage() {
                               </div>
                             </td>
                             <td className="max-w-md border-b border-slate-100 px-4 py-4 text-sm leading-6 text-slate-600">{getLeadAddress(lead)}</td>
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
-                              {leadRating ? (
-                                <span className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 font-medium">
-                                  {leadRating}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">-</span>
-                              )}
-                            </td>
+                            {isLinkedInSelected ? (
+                              <>
+                                <td className="border-b border-slate-100 px-4 py-4 text-sm font-medium text-slate-700">{getLeadCurrentCompany(lead)}</td>
+                                <td className="border-b border-slate-100 px-4 py-4 text-sm font-medium text-slate-700">{getLeadFollowerCount(lead)}</td>
+                                <td className="border-b border-slate-100 px-4 py-4 text-sm font-medium text-slate-700">{getLeadConnectionCount(lead)}</td>
+                              </>
+                            ) : (
+                              <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
+                                {leadRating ? (
+                                  <span className="inline-flex rounded-md border border-slate-200 bg-white px-2 py-1 font-medium">
+                                    {leadRating}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">N/A</span>
+                                )}
+                              </td>
+                            )}
                           </tr>
                         )
                       })}
