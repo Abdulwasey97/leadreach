@@ -22,6 +22,7 @@ body {
 }
 
 .dashboard-scrollbar {
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: #06b6d4 #e2e8f0;
 }
@@ -43,6 +44,12 @@ body {
 
 .dashboard-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #0891b2;
+}
+
+@media (max-width: 785px) {
+  .leadreach-sidebar-shell ~ div {
+    padding-top: 3.5rem;
+  }
 }
 
 .loader-host {

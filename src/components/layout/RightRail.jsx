@@ -4,7 +4,7 @@ import RecentSearchesPanel from '../dashboard/RecentSearchesPanel'
 
 function RightRail({ apiBaseUrl, orgIdentifier, usageDetails }) {
   return (
-    <aside className="flex min-h-0 flex-col gap-4 overflow-hidden">
+    <aside className="flex flex-col gap-4 xl:h-full xl:min-h-0 xl:overflow-hidden">
       <QuotaList usageDetails={usageDetails} />
       <RecentSearchesPanel
         apiBaseUrl={apiBaseUrl}

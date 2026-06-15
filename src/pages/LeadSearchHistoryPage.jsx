@@ -460,7 +460,158 @@ function LeadSearchHistoryPage() {
                 </p>
               ) : null}
 
-              <div className="overflow-x-auto">
+              <div className="space-y-3 bg-slate-50/60 p-3 min-[786px]:hidden">
+                {paginatedLeads.map((lead) => {
+                  const isSelected = Boolean(selectedRows[lead.rowId]);
+                  const isAddressExpanded = Boolean(
+                    expandedAddressRows[lead.rowId],
+                  );
+                  const address = String(
+                    lead.platform === "LinkedIn" && lead.location
+                      ? lead.location
+                      : lead.address || "",
+                  ).trim();
+                  const canExpandAddress =
+                    address.length > ADDRESS_PREVIEW_LENGTH;
+
+                  return (
+                    <article
+                      key={lead.rowId}
+                      className={`rounded-lg border bg-white p-4 shadow-sm transition ${
+                        isSelected
+                          ? "border-cyan-200 ring-2 ring-cyan-100"
+                          : "border-slate-200"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleRow(lead.rowId)}
+                          className={`mt-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full border transition ${
+                            isSelected
+                              ? "border-slate-900 bg-slate-900 text-white"
+                              : "border-slate-300 bg-white text-transparent"
+                          }`}
+                          aria-label={`Select ${formatLeadName(lead)}`}
+                        >
+                          <svg
+                            viewBox="0 0 16 16"
+                            className="size-3"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path d="m4 8 2.4 2.4L12 5" />
+                          </svg>
+                        </button>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="break-words text-sm font-bold leading-5 text-slate-900">
+                                {formatLeadName(lead)}
+                              </p>
+                              {lead?.headline ? (
+                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+                                  {lead.headline}
+                                </p>
+                              ) : null}
+                            </div>
+                            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-cyan-100 bg-cyan-50 px-2 py-1 text-[11px] font-bold text-cyan-700">
+                              <span className="size-1.5 rounded-full bg-cyan-600" />
+                              {lead.platform}
+                            </span>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 text-xs text-slate-600">
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                Email
+                              </p>
+                              <p className="mt-1 break-words font-semibold text-slate-700">
+                                {getEnrichedEmailSummary(lead)}
+                              </p>
+                            </div>
+
+                            {platformFilter !== "LinkedIn" ? (
+                              <div>
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                  Phone
+                                </p>
+                                <p className="mt-1 font-semibold text-slate-700">
+                                  {lead.platform === "LinkedIn"
+                                    ? "N/A"
+                                    : lead.phone || "N/A"}
+                                </p>
+                              </div>
+                            ) : null}
+
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                Address
+                              </p>
+                              <p className="mt-1 break-words font-semibold text-slate-700">
+                                {formatAddressPreview(
+                                  address,
+                                  isAddressExpanded,
+                                )}
+                              </p>
+                              {canExpandAddress ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleToggleAddress(lead.rowId)
+                                  }
+                                  className="mt-1 text-xs font-bold text-cyan-700"
+                                >
+                                  {isAddressExpanded ? "See less" : "See more"}
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                            <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                              {lead.platform === "LinkedIn"
+                                ? `${lead?.followerCount ?? "N/A"} followers`
+                                : `Rating ${formatRating(lead.rating)}`}
+                            </span>
+                            <span className="text-xs font-semibold text-slate-500">
+                              {formatDate(lead.leadCreatedOn)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+
+                {!loading && filteredLeads.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-white p-8 text-center">
+                    <p className="text-base font-bold text-slate-800">
+                      No historical leads yet
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Run a lead search and the saved results will appear here.
+                    </p>
+                  </div>
+                ) : null}
+
+                {loading
+                  ? Array.from({ length: 5 }).map((_, index) => (
+                      <div
+                        key={`mobile-loading-${index}`}
+                        className="animate-pulse rounded-lg border border-slate-200 bg-white p-4"
+                      >
+                        <span className="block h-4 w-3/4 rounded-full bg-slate-100" />
+                        <span className="mt-3 block h-3 w-1/2 rounded-full bg-slate-100" />
+                        <span className="mt-5 block h-14 rounded-lg bg-slate-100" />
+                      </div>
+                    ))
+                  : null}
+              </div>
+
+              <div className="hidden overflow-x-auto min-[786px]:block">
                 <table className="min-w-[1220px] w-full border-separate border-spacing-0">
                   <thead>
                     <tr className="bg-slate-100">

@@ -7,7 +7,7 @@ function TopNavbar({
   onNavItemClick,
 }) {
   return (
-    <header className="border-b border-slate-200 bg-white px-5 py-3">
+    <header className="hidden border-b border-slate-200 bg-white px-5 py-3 min-[786px]:block">
       <div className="flex min-h-[44px] items-center justify-end gap-6">
         <nav className="hidden items-center gap-2 md:flex">
           {navItems.map((item) => (

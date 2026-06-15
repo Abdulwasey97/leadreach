@@ -78,20 +78,37 @@ function SettingsPage() {
             showUpgrade={false}
           />
 
-          <div className="flex-1 space-y-5 p-5">
+          <div className="flex-1 space-y-5 p-4 sm:p-5">
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm min-[786px]:hidden">
+              {settingsTopNavItems.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setActiveSettingsTab(item)}
+                  className={`rounded-lg px-3 py-2 text-sm font-bold transition ${
+                    activeSettingsTab === item
+                      ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-600/20'
+                      : 'bg-slate-50 text-slate-500'
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+
             {activeSettingsTab === 'Team' ? (
               <>
-                <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700">Access Control</p>
-                  <h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">Team &amp; Access</h2>
-                  <p className="mt-1 text-sm text-slate-500">Manage organizational hierarchy and member privileges.</p>
+                  <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Team &amp; Access</h2>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">Manage organizational hierarchy and member privileges.</p>
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-3 lg:grid-cols-4">
-                <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <article className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:col-span-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-500">User Utilization</p>
                   <p className="mt-2 text-3xl font-extrabold text-slate-800">
                     {activeUsers} <span className="text-xl font-semibold text-slate-500">/ {totalUsers}</span>
@@ -104,19 +121,19 @@ function SettingsPage() {
                   </p>
                 </article>
 
-                <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-3xl font-extrabold text-slate-800">{totalUsers}</p>
-                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-500">Total Users</p>
+                <article className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+                  <p className="text-2xl font-extrabold text-slate-800 sm:text-3xl">{totalUsers}</p>
+                  <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-500 sm:text-[11px]">Total Users</p>
                 </article>
 
-                <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-3xl font-extrabold text-slate-800">{inactiveUsers}</p>
-                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-500">Inactive Users</p>
+                <article className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+                  <p className="text-2xl font-extrabold text-slate-800 sm:text-3xl">{inactiveUsers}</p>
+                  <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-500 sm:text-[11px]">Inactive Users</p>
                 </article>
 
-                <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-3xl font-extrabold text-slate-800">{activeUsers}</p>
-                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.13em] text-slate-500">Active Users</p>
+                <article className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+                  <p className="text-2xl font-extrabold text-slate-800 sm:text-3xl">{activeUsers}</p>
+                  <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-500 sm:text-[11px]">Active Users</p>
                 </article>
               </div>
                 </section>
@@ -128,7 +145,57 @@ function SettingsPage() {
                 </p>
               </div>
 
-              <div className="overflow-x-auto">
+              <div className="space-y-3 bg-slate-50/60 p-3 min-[786px]:hidden">
+                {paginatedOrganizationUsers.map((user) => {
+                  const displayName = getUserDisplayName(user)
+                  const isActive = user?.userStatus === true
+
+                  return (
+                    <article key={user.userIdentifier || user.userEmail || displayName} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-700">
+                          {initials(displayName)}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="break-words text-sm font-bold text-slate-900">{displayName}</p>
+                              <p className="mt-1 break-all text-xs font-medium text-slate-500">{user.userEmail || 'N/A'}</p>
+                            </div>
+                            <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold ${isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                              <span className={`size-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                              {isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 border-t border-slate-100 pt-3 text-xs">
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">User Name</p>
+                              <p className="mt-1 font-semibold text-cyan-700">{user.userName || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">Phone</p>
+                              <p className="mt-1 font-semibold text-slate-700">{user.userPhone || 'N/A'}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">User Identifier</p>
+                              <p className="mt-1 break-all font-semibold text-slate-700">{user.userIdentifier || 'N/A'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  )
+                })}
+
+                {organizationUsers.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
+                    No users found in the fetched organization details.
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="hidden overflow-x-auto min-[786px]:block">
                 <table className="min-w-full divide-y divide-slate-100">
                   <thead className="bg-slate-50">
                     <tr>

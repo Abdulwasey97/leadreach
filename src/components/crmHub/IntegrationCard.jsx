@@ -169,22 +169,22 @@ function IntegrationCard({ integration }) {
 
   return (
     <article
-      className={`relative overflow-hidden rounded-lg border border-cyan-200 bg-cyan-50/50 p-5 shadow-sm ${
+      className={`relative overflow-hidden rounded-lg border border-cyan-200 bg-cyan-50/50 p-4 shadow-sm sm:p-5 ${
         isComingSoon ? 'opacity-70' : ''
       }`}
     >
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <span className="inline-flex size-10 items-center justify-center rounded-lg bg-white text-cyan-600 shadow-sm ring-1 ring-cyan-100">
+      <div className="relative flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-white text-cyan-600 shadow-sm ring-1 ring-cyan-100 sm:size-10">
             <IntegrationIcon icon={integration.icon} />
           </span>
-          <div>
-            <h4 className="text-xl font-bold tracking-tight text-slate-900">{integration.name}</h4>
-            <p className="mt-1 text-sm text-slate-500">{integration.subtitle}</p>
+          <div className="min-w-0">
+            <h4 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">{integration.name}</h4>
+            <p className="mt-1 max-w-[18rem] text-sm leading-5 text-slate-500">{integration.subtitle}</p>
           </div>
         </div>
         <span
-          className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
+          className={`w-fit rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] sm:shrink-0 ${
             isConnected ? 'bg-cyan-100 text-cyan-700 ring-1 ring-cyan-200' : 'bg-slate-100 text-slate-500 ring-1 ring-slate-200'
           }`}
         >
@@ -194,8 +194,8 @@ function IntegrationCard({ integration }) {
 
       <div className="relative mt-5 h-px w-full bg-gradient-to-r from-cyan-100 via-cyan-200/60 to-transparent" />
 
-      <div className="relative mt-4 flex items-center justify-between gap-3">
-        <p className="text-xs font-medium text-slate-500">Secure OAuth connection</p>
+      <div className="relative mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs font-medium leading-5 text-slate-500">Secure OAuth connection</p>
         <button
           type="button"
           onClick={isComingSoon ? undefined : isZohoConnected ? handleDisconnect : handleConnect}
@@ -210,7 +210,7 @@ function IntegrationCard({ integration }) {
             }
           }}
           disabled={isComingSoon || isConnecting || isDisconnecting}
-          className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed ${
+          className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed sm:w-auto sm:py-2 ${
             isComingSoon
               ? 'bg-slate-400'
               : isZohoConnected

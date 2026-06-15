@@ -63,11 +63,11 @@ function QuotaList({ usageDetails }) {
 
   return (
     <section
-      className={`flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-5 pb-10 shadow-sm transition-all duration-500 ${
+      className={`flex shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-5 pb-10 shadow-sm transition-all duration-500 xl:p-4 xl:pb-4 ${
         isVisible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
       }`}
     >
-      <div className="mb-4 flex items-start justify-between gap-3">
+      <div className="mb-4 flex items-start justify-between gap-3 xl:mb-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">
             Quota health
@@ -81,7 +81,7 @@ function QuotaList({ usageDetails }) {
         </span>
       </div>
 
-      <div className="mb-4 rounded-lg border border-cyan-100 bg-cyan-50 p-3">
+      <div className="mb-4 rounded-lg border border-cyan-100 bg-cyan-50 p-3 xl:mb-3">
         <div className="flex items-end justify-between gap-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-700">
@@ -103,7 +103,7 @@ function QuotaList({ usageDetails }) {
         </div>
       </div>
 
-      <ul className="space-y-3">
+      <ul className="space-y-3 xl:space-y-2">
         {quotaItems.map((quota) => {
           const percentage =
             quota.max > 0
@@ -113,7 +113,7 @@ function QuotaList({ usageDetails }) {
           return (
             <li
               key={quota.id}
-              className={`rounded-lg border border-slate-100 bg-slate-50/70 p-3 transition-all duration-500 ${
+              className={`rounded-lg border border-slate-100 bg-slate-50/70 p-3 transition-all duration-500 xl:p-2.5 ${
                 isVisible
                   ? "translate-x-0 opacity-100"
                   : "translate-x-3 opacity-0"
