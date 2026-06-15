@@ -1,10 +1,10 @@
-import ActivityList from '../dashboard/ActivityList'
-import QuotaList from '../dashboard/QuotaList'
-import RecentSearchesPanel from '../dashboard/RecentSearchesPanel'
+import ActivityList from "../dashboard/ActivityList";
+import QuotaList from "../dashboard/QuotaList";
+import RecentSearchesPanel from "../dashboard/RecentSearchesPanel";
 
 function RightRail({ apiBaseUrl, orgIdentifier, usageDetails }) {
   return (
-    <aside className="flex flex-col gap-4 xl:h-full xl:min-h-0 xl:overflow-hidden">
+    <aside className="flex flex-col gap-4 xl:min-h-0">
       <QuotaList usageDetails={usageDetails} />
       <RecentSearchesPanel
         apiBaseUrl={apiBaseUrl}
@@ -12,7 +12,7 @@ function RightRail({ apiBaseUrl, orgIdentifier, usageDetails }) {
       />
       <ActivityList />
     </aside>
-  )
+  );
 }
 
-export default RightRail
+export default RightRail;

@@ -74,7 +74,7 @@ function DashboardPage() {
         <Sidebar />
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="dashboard-scrollbar grid min-h-0 flex-1 auto-rows-max content-start gap-2 overflow-y-auto p-4 pt-3 sm:p-5 min-[786px]:gap-3 xl:h-full xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] xl:grid-rows-none xl:gap-5 xl:overflow-hidden">
+          <div className="dashboard-scrollbar grid min-h-0 flex-1 auto-rows-max content-start gap-2 overflow-y-auto p-4 pt-3 sm:p-5 min-[786px]:gap-3 xl:h-full xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] xl:grid-rows-none xl:gap-5">
             <main className="relative z-10 space-y-4 xl:min-h-0 xl:overflow-hidden">
               <header className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-[786px]:flex min-[786px]:flex-wrap min-[786px]:items-start min-[786px]:justify-between min-[786px]:gap-3 min-[786px]:border-0 min-[786px]:bg-transparent min-[786px]:p-0 min-[786px]:shadow-none">
                 <div>
