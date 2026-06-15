@@ -1230,7 +1230,166 @@ function LeadSearchPage() {
 
                 {shouldShowResultsTable ? (
                   <>
-                <div className="overflow-x-auto">
+                <div className="space-y-3 bg-slate-50/60 p-3 min-[786px]:hidden">
+                  {paginatedLeads.map((lead, index) => {
+                    const absoluteIndex = (currentPage - 1) * PAGE_SIZE + index
+                    const leadIdentifier = getLeadIdentifier(lead)
+                    const leadName = getLeadDisplayName(lead)
+                    const leadWebsite = getLeadWebsite(lead)
+                    const rowKey = leadIdentifier
+                      ? `${leadIdentifier}-${leadName}`
+                      : `${leadName}-${absoluteIndex}`
+                    const isSelected = Boolean(selectedRows[rowKey])
+                    const lookupEmails = getLeadEmails(lead)
+                    const enrichedEmails = enrichEmailsByRow[rowKey] || getLeadEnrichedEmails(lead)
+                    const emails = isFacebookSelected ? enrichedEmails : getLeadEmails(lead, enrichEmailsByRow[rowKey] || [])
+                    const canEnrichEmail = isFacebookSelected
+                      ? enrichedEmails.length === 0 && !enrichCompletedByRow[rowKey]
+                      : lookupEmails.length === 0 && !enrichCompletedByRow[rowKey]
+                    const leadRating = getLeadRatingLabel(lead)
+                    const leadProfileUrl = getLeadProfileUrl(lead)
+                    const leadProfileImageUrl = getLeadProfileImageUrl(lead)
+
+                    return (
+                      <article
+                        key={rowKey}
+                        className={`rounded-lg border bg-white p-4 shadow-sm transition ${
+                          isSelected ? 'border-cyan-200 ring-2 ring-cyan-100' : 'border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleRowSelection(rowKey)}
+                            className={`mt-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full border transition ${
+                              isSelected
+                                ? 'border-slate-900 bg-slate-900 text-white'
+                                : 'border-slate-300 bg-white text-transparent'
+                            }`}
+                            aria-label={`Select ${leadName}`}
+                          >
+                            <svg viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="m4 8 2.4 2.4L12 5" />
+                            </svg>
+                          </button>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start gap-3">
+                              {isLinkedInSelected ? (
+                                leadProfileUrl ? (
+                                  <a
+                                    href={leadProfileUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-500"
+                                  >
+                                    {leadProfileImageUrl ? (
+                                      <img src={leadProfileImageUrl} alt={`${leadName} profile`} className="size-full object-cover" />
+                                    ) : (
+                                      leadName.slice(0, 1).toUpperCase()
+                                    )}
+                                  </a>
+                                ) : (
+                                  <span className="inline-flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-xs font-bold text-slate-500">
+                                    {leadProfileImageUrl ? (
+                                      <img src={leadProfileImageUrl} alt={`${leadName} profile`} className="size-full object-cover" />
+                                    ) : (
+                                      leadName.slice(0, 1).toUpperCase()
+                                    )}
+                                  </span>
+                                )
+                              ) : null}
+                              <div className="min-w-0 flex-1">
+                                <p className="break-words text-sm font-bold leading-5 text-slate-900">{leadName}</p>
+                                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700">
+                                  {selectedSource}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 grid gap-3 text-xs text-slate-600">
+                              {!isLinkedInSelected ? (
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Phone</p>
+                                    <p className="mt-1 break-words font-semibold text-slate-700">{getLeadPhone(lead)}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Website</p>
+                                    {leadWebsite ? (
+                                      <a href={leadWebsite} target="_blank" rel="noreferrer" className="mt-1 inline-flex max-w-full rounded-md bg-cyan-50 px-2 py-1 font-semibold text-cyan-700">
+                                        <span className="truncate">{getLeadWebsiteLabel(lead, selectedSource)}</span>
+                                      </a>
+                                    ) : (
+                                      <p className="mt-1 font-semibold text-slate-400">N/A</p>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : null}
+
+                              <div>
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Email</p>
+                                <div className="mt-1 flex flex-wrap items-center gap-2">
+                                  {emails.length ? (
+                                    emails.map((email, emailIndex) => (
+                                      <a
+                                        key={`${rowKey}-mobile-${emailIndex}-${email}`}
+                                        href={`mailto:${email}`}
+                                        className="max-w-full truncate rounded-md bg-cyan-50 px-2 py-1 font-semibold text-cyan-700"
+                                      >
+                                        {email}
+                                      </a>
+                                    ))
+                                  ) : (
+                                    <span className="font-semibold text-slate-400">No email</span>
+                                  )}
+                                  {canEnrichEmail ? (
+                                    <button
+                                      type="button"
+                                      aria-label="Enrich email"
+                                      disabled={Boolean(enrichLoadingByRow[rowKey])}
+                                      onClick={() => handleEnrichEmail(lead, rowKey)}
+                                      className="inline-flex cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white px-2 py-1 font-bold text-slate-600 transition hover:bg-cyan-50 hover:text-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      {enrichLoadingByRow[rowKey] ? 'Checking...' : 'Enrich'}
+                                    </button>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              <div>
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Address</p>
+                                <p className="mt-1 break-words font-semibold leading-5 text-slate-700">{getLeadAddress(lead)}</p>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                              {isLinkedInSelected ? (
+                                <div className="flex flex-wrap gap-2">
+                                  <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                    {getLeadCurrentCompany(lead)}
+                                  </span>
+                                  <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                    {getLeadFollowerCount(lead)} followers
+                                  </span>
+                                  <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                    {getLeadConnectionCount(lead)} connections
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                  Rating {leadRating || 'N/A'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+
+                <div className="hidden overflow-x-auto min-[786px]:block">
                   <table className="min-w-[1120px] w-full border-separate border-spacing-0">
                     <thead>
                       <tr className="bg-slate-100">

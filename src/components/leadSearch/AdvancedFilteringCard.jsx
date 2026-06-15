@@ -125,11 +125,11 @@ function AdvancedFilteringCard({
       <div className="space-y-2.5 p-3">
         <div className="rounded-lg border border-slate-100 bg-slate-50/80 p-2">
           <div className="flex flex-wrap items-stretch gap-3">
-            <div className="min-w-[460px] flex-[2_1_520px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="w-full min-w-0 flex-[2_1_520px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 min-[900px]:min-w-[460px]">
               <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 Platform
               </p>
-              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:grid-cols-3">
                 {platforms.map((platform) => {
                   const isSelected = selectedSource === platform.id;
                   const isBlocked = blockedPlatformIds.includes(platform.id);
@@ -138,7 +138,7 @@ function AdvancedFilteringCard({
                       key={platform.id}
                       type="button"
                       onClick={() => onSelectSource(platform.id)}
-                    className={`group relative flex min-w-[120px] cursor-pointer items-center gap-2 overflow-hidden rounded-lg border px-3 py-2 text-left transition ${
+                    className={`group relative flex min-w-0 cursor-pointer items-center gap-2 overflow-hidden rounded-lg border px-3 py-2 text-left transition ${
                         isSelected
                           ? "border-cyan-300 bg-cyan-50 text-cyan-900 shadow-sm shadow-cyan-100"
                           : isBlocked
@@ -161,7 +161,7 @@ function AdvancedFilteringCard({
                         <TargetIcon icon={platform.icon} />
                       </span>
                       <span className="min-w-0">
-                          <span className="block whitespace-nowrap text-sm font-semibold leading-4">
+                          <span className="block truncate text-sm font-semibold leading-4">
                           {platform.name}
                         </span>
                         {isBlocked ? (
@@ -180,7 +180,7 @@ function AdvancedFilteringCard({
               </div>
             </div>
 
-            <div className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 sm:w-auto sm:shrink-0">
               <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 Category
               </p>
@@ -202,11 +202,11 @@ function AdvancedFilteringCard({
               </div>
             </div>
 
-            <div className="min-w-[430px] flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="w-full min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 min-[900px]:min-w-[430px]">
               <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 Email type
               </p>
-              <div className="flex flex-nowrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 {emailTypeOptions.map((type) => {
                   const selected = emailTypes.includes(type);
                   return (
@@ -237,7 +237,7 @@ function AdvancedFilteringCard({
             <span className="rounded-md bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500 ring-1 ring-slate-200">
               {selectedSource}
             </span>
-            <div className="flex min-w-[240px] flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 transition focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-100">
+            <div className="flex min-w-0 flex-1 basis-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 transition focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-100 sm:basis-auto">
               <svg
                 viewBox="0 0 24 24"
                 className="size-4 shrink-0 text-cyan-600"
@@ -260,7 +260,7 @@ function AdvancedFilteringCard({
             <button
               type="submit"
               disabled={isSearchDisabled}
-              className="h-10 shrink-0 rounded-lg bg-cyan-600 px-5 text-sm font-semibold text-white shadow-sm shadow-cyan-100 transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="h-10 w-full shrink-0 rounded-lg bg-cyan-600 px-5 text-sm font-semibold text-white shadow-sm shadow-cyan-100 transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
             >
               {loading ? "Searching..." : "Search"}
             </button>
