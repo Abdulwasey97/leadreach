@@ -96,10 +96,10 @@ function DashboardPage() {
                 </div>
               </header>
 
-              <div className="hidden min-[786px]:block">
+              <div className="hidden md:block">
                 <StatsGrid usageDetails={usageDetails} />
               </div>
-              <div className="hidden min-[786px]:block">
+              <div className="hidden md:block">
                 <LeadAccumulationCard usageDetails={usageDetails} />
               </div>
             </main>
