@@ -79,8 +79,15 @@ function AdvancedFilteringCard({
   emailTypeOptions,
   onToggleEmailType,
 }) {
+  const isSelectedPlatformBlocked = blockedPlatformIds.includes(selectedSource);
+  const isSearchDisabled = loading || isSelectedPlatformBlocked;
+
   const handleSubmit = (event) => {
     event.preventDefault();
+    if (isSearchDisabled) {
+      return;
+    }
+
     onSearch();
   };
 
@@ -252,7 +259,7 @@ function AdvancedFilteringCard({
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isSearchDisabled}
               className="h-10 shrink-0 rounded-lg bg-cyan-600 px-5 text-sm font-semibold text-white shadow-sm shadow-cyan-100 transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "Searching..." : "Search"}

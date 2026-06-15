@@ -67,6 +67,14 @@ const DEFAULT_EXPORT_FIELD_MAPPINGS = {
   Address: 'Street',
   Rating: 'Rating',
 }
+const LINKEDIN_EXPORT_FIELD_MAPPINGS = {
+  Name: 'Last Name',
+  Email: 'Email',
+  Address: 'Street',
+  'Current Company': 'Company',
+  Followers: 'Select',
+  Connections: 'Select',
+}
 const EXPORT_MODULES = [
   { label: 'Leads', value: 'Leads' },
   { label: 'Contacts', value: 'Contacts' },
@@ -547,6 +555,12 @@ function LeadSearchPage() {
     ? ['Name', 'Email', 'Address', 'Current Company', 'Followers', 'Connections']
     : ['Name', 'Phone', 'Website', 'Email', 'Address', 'Rating']
 
+  const exportMappingFields = useMemo(() => {
+    return isLinkedInSelected
+      ? ['Name', 'Email', 'Address', 'Current Company', 'Followers', 'Connections']
+      : ['Name', 'Phone', 'Website', 'Email', 'Address', 'Rating']
+  }, [isLinkedInSelected])
+
   const selectedExportModule = useMemo(
     () => exportModules.find((module) => module.value === exportModule),
     [exportModule, exportModules],
@@ -919,6 +933,18 @@ function LeadSearchPage() {
       return getLeadRatingLabel(lead)
     }
 
+    if (field === 'Current Company') {
+      return getLeadCurrentCompany(lead) === 'N/A' ? '' : getLeadCurrentCompany(lead)
+    }
+
+    if (field === 'Followers') {
+      return getLeadFollowerCount(lead) === 'N/A' ? '' : getLeadFollowerCount(lead)
+    }
+
+    if (field === 'Connections') {
+      return getLeadConnectionCount(lead) === 'N/A' ? '' : getLeadConnectionCount(lead)
+    }
+
     return ''
   }
 
@@ -931,7 +957,7 @@ function LeadSearchPage() {
       .map(({ lead, rowKey }) => {
         const mappedRecord = {}
 
-        EXPORT_MAPPING_FIELDS.forEach((field) => {
+        exportMappingFields.forEach((field) => {
           const crmField = exportFieldMappings[field]
           if (!crmField || crmField === 'Select') {
             return
@@ -948,7 +974,9 @@ function LeadSearchPage() {
   const handleOpenExportModal = () => {
     setExportModule('')
     setExportStep(1)
-    setExportFieldMappings(DEFAULT_EXPORT_FIELD_MAPPINGS)
+    setExportFieldMappings(
+      selectedSource === 'linkedin' ? LINKEDIN_EXPORT_FIELD_MAPPINGS : DEFAULT_EXPORT_FIELD_MAPPINGS
+    )
     setShowExportModal(true)
   }
 
@@ -1564,7 +1592,7 @@ function LeadSearchPage() {
                         {selectedExportModule?.label || exportModule} ( Mapping )
                       </h4>
                       <div className="mt-3 max-h-[260px] overflow-y-auto rounded-lg border border-slate-200 shadow-sm">
-                        {EXPORT_MAPPING_FIELDS.map((field) => (
+                        {exportMappingFields.map((field) => (
                           <div key={field} className="grid grid-cols-[1fr_1.45fr] items-center border-b border-slate-100 bg-white last:border-b-0 hover:bg-slate-50/70">
                             <div className="px-4 py-3 text-sm font-semibold text-slate-700">{field}</div>
                             <div className="border-l border-slate-100 px-4 py-2">

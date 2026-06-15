@@ -24,14 +24,34 @@ function getOrgWalletFromStorage() {
   );
 }
 
+function getOrgIdentifierFromStorage() {
+  const orgPayload = safeParseJson(
+    localStorage.getItem("organization_details_response") || "{}",
+  );
+
+  return (
+    localStorage.getItem("organization_identifier") ||
+    orgPayload?.OrganizationDetails?.orgIdentifier ||
+    orgPayload?.OrgDetails?.organizationID ||
+    orgPayload?.orgIdentifier ||
+    "ORG-2012"
+  );
+}
+
 function DashboardPage() {
   const [usageDetails, setUsageDetails] = useState(() =>
     getOrgWalletFromStorage(),
   );
+  const [orgIdentifier, setOrgIdentifier] = useState(() =>
+    getOrgIdentifierFromStorage(),
+  );
+  const apiBaseUrl =
+    import.meta.env.VITE_API_BASE_URL || "https://leadreach.api-pct.com";
 
   useEffect(() => {
     const updateUsageFromOrgWallet = () => {
       setUsageDetails(getOrgWalletFromStorage());
+      setOrgIdentifier(getOrgIdentifierFromStorage());
     };
 
     updateUsageFromOrgWallet();
@@ -49,13 +69,13 @@ function DashboardPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="mx-auto flex min-h-screen max-w-[1500px] bg-slate-100">
+    <div className="h-screen overflow-hidden bg-slate-100">
+      <div className="mx-auto flex h-screen max-w-[1500px] overflow-hidden bg-slate-100">
         <Sidebar />
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="grid flex-1 gap-5 p-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-            <main className="space-y-4">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="grid min-h-0 flex-1 gap-5 overflow-hidden p-5 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+            <main className="min-h-0 space-y-4 overflow-hidden">
               <header className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
@@ -80,7 +100,11 @@ function DashboardPage() {
               <LeadAccumulationCard usageDetails={usageDetails} />
             </main>
 
-            <RightRail usageDetails={usageDetails} />
+            <RightRail
+              apiBaseUrl={apiBaseUrl}
+              orgIdentifier={orgIdentifier}
+              usageDetails={usageDetails}
+            />
           </div>
         </div>
       </div>
