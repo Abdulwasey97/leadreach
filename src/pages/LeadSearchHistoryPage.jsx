@@ -285,7 +285,6 @@ function LeadSearchHistoryPage() {
     direction: "DESC",
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedRows, setSelectedRows] = useState({});
   const [expandedAddressRows, setExpandedAddressRows] = useState({});
 
   const loadHistory = useCallback(async () => {
@@ -307,7 +306,6 @@ function LeadSearchHistoryPage() {
       );
 
       setLeads(searchedLeads);
-      setSelectedRows({});
       setExpandedAddressRows({});
     } catch (requestError) {
       setLeads([]);
@@ -345,17 +343,6 @@ function LeadSearchHistoryPage() {
     return filteredLeads.slice(startIndex, startIndex + PAGE_SIZE);
   }, [filteredLeads, visiblePage]);
 
-  const visibleRowIds = useMemo(
-    () => paginatedLeads.map((lead) => lead.rowId),
-    [paginatedLeads],
-  );
-
-  const allVisibleRowsSelected =
-    visibleRowIds.length > 0 &&
-    visibleRowIds.every((rowId) => Boolean(selectedRows[rowId]));
-
-  const selectedCount = Object.values(selectedRows).filter(Boolean).length;
-
   const handlePlatformFilterChange = (value) => {
     setPlatformFilter(value);
     setCurrentPage(1);
@@ -370,25 +357,6 @@ function LeadSearchHistoryPage() {
     setCurrentPage(1);
   };
 
-  const handleToggleAllVisibleRows = () => {
-    setSelectedRows((prev) => {
-      const next = { ...prev };
-
-      visibleRowIds.forEach((rowId) => {
-        next[rowId] = !allVisibleRowsSelected;
-      });
-
-      return next;
-    });
-  };
-
-  const handleToggleRow = (rowId) => {
-    setSelectedRows((prev) => ({
-      ...prev,
-      [rowId]: !prev[rowId],
-    }));
-  };
-
   const handleToggleAddress = (rowId) => {
     setExpandedAddressRows((prev) => ({
       ...prev,
@@ -397,12 +365,12 @@ function LeadSearchHistoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="mx-auto flex min-h-screen max-w-[1500px]">
+    <div className="h-screen overflow-hidden bg-slate-100">
+      <div className="mx-auto flex h-screen max-w-[1500px] overflow-hidden">
         <Sidebar />
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex-1 space-y-5 p-5">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="dashboard-scrollbar min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5">
             <header className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700">
                 Acquisition Archive
@@ -449,9 +417,6 @@ function LeadSearchHistoryPage() {
                     ? "Loading saved leads from all platforms..."
                     : `${filteredLeads.length} leads found`}
                 </p>
-                <p className="font-medium text-slate-600">
-                  Selected: {selectedCount}
-                </p>
               </div>
 
               {error ? (
@@ -462,7 +427,6 @@ function LeadSearchHistoryPage() {
 
               <div className="space-y-3 bg-slate-50/60 p-3 min-[786px]:hidden">
                 {paginatedLeads.map((lead) => {
-                  const isSelected = Boolean(selectedRows[lead.rowId]);
                   const isAddressExpanded = Boolean(
                     expandedAddressRows[lead.rowId],
                   );
@@ -477,34 +441,9 @@ function LeadSearchHistoryPage() {
                   return (
                     <article
                       key={lead.rowId}
-                      className={`rounded-lg border bg-white p-4 shadow-sm transition ${
-                        isSelected
-                          ? "border-cyan-200 ring-2 ring-cyan-100"
-                          : "border-slate-200"
-                      }`}
+                      className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition"
                     >
                       <div className="flex items-start gap-3">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleRow(lead.rowId)}
-                          className={`mt-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full border transition ${
-                            isSelected
-                              ? "border-slate-900 bg-slate-900 text-white"
-                              : "border-slate-300 bg-white text-transparent"
-                          }`}
-                          aria-label={`Select ${formatLeadName(lead)}`}
-                        >
-                          <svg
-                            viewBox="0 0 16 16"
-                            className="size-3"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="m4 8 2.4 2.4L12 5" />
-                          </svg>
-                        </button>
-
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
@@ -611,32 +550,32 @@ function LeadSearchHistoryPage() {
                   : null}
               </div>
 
-              <div className="hidden overflow-x-auto min-[786px]:block">
-                <table className="min-w-[1220px] w-full border-separate border-spacing-0">
+              <div className="hidden overflow-hidden min-[786px]:block">
+                <table className="w-full table-fixed border-separate border-spacing-0">
+                  <colgroup>
+                    {platformFilter === "LinkedIn" ? (
+                      <>
+                        <col className="w-[22%]" />
+                        <col className="w-[20%]" />
+                        <col className="w-[24%]" />
+                        <col className="w-[10%]" />
+                        <col className="w-[14%]" />
+                        <col className="w-[10%]" />
+                      </>
+                    ) : (
+                      <>
+                        <col className="w-[21%]" />
+                        <col className="w-[18%]" />
+                        <col className="w-[11%]" />
+                        <col className="w-[24%]" />
+                        <col className="w-[10%]" />
+                        <col className="w-[6%]" />
+                        <col className="w-[10%]" />
+                      </>
+                    )}
+                  </colgroup>
                   <thead>
                     <tr className="bg-slate-100">
-                      <th className="w-12 border-b border-slate-200 px-4 py-3 text-left">
-                        <button
-                          type="button"
-                          onClick={handleToggleAllVisibleRows}
-                          className={`inline-flex size-4 items-center justify-center rounded-full border transition ${
-                            allVisibleRowsSelected
-                              ? "border-slate-900 bg-slate-900 text-white"
-                              : "border-slate-300 bg-white text-transparent hover:border-cyan-500"
-                          }`}
-                          aria-label="Select all visible rows"
-                        >
-                          <svg
-                            viewBox="0 0 16 16"
-                            className="size-3"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="m4 8 2.4 2.4L12 5" />
-                          </svg>
-                        </button>
-                      </th>
                       {[
                         "Name",
                         "Email",
@@ -655,7 +594,7 @@ function LeadSearchHistoryPage() {
                         return (
                           <th
                             key={heading}
-                            className="border-b border-slate-200 px-4 py-3 text-left text-xs font-medium text-slate-900"
+                            className="border-b border-slate-200 px-3 py-3 text-left text-xs font-medium text-slate-900"
                           >
                             {sortableColumn ? (
                               <button
@@ -663,7 +602,7 @@ function LeadSearchHistoryPage() {
                                 onClick={() =>
                                   handleSortChange(sortableColumn.sortKey)
                                 }
-                                className={`inline-flex items-center gap-2 transition hover:text-cyan-700 ${
+                                className={`inline-flex max-w-full items-center gap-2 transition hover:text-cyan-700 ${
                                   isActiveSort ? "text-cyan-700" : ""
                                 }`}
                                 aria-label={`Sort by ${heading}`}
@@ -679,7 +618,7 @@ function LeadSearchHistoryPage() {
                                 />
                               </button>
                             ) : (
-                              <span>{heading}</span>
+                              <span className="truncate">{heading}</span>
                             )}
                           </th>
                         );
@@ -688,7 +627,6 @@ function LeadSearchHistoryPage() {
                   </thead>
                   <tbody className="bg-white">
                     {paginatedLeads.map((lead) => {
-                      const isSelected = Boolean(selectedRows[lead.rowId]);
                       const isAddressExpanded = Boolean(
                         expandedAddressRows[lead.rowId],
                       );
@@ -703,31 +641,9 @@ function LeadSearchHistoryPage() {
                       return (
                         <tr
                           key={lead.rowId}
-                          className={`group transition ${isSelected ? "bg-cyan-50/50" : "hover:bg-slate-50"}`}
+                          className="group transition hover:bg-slate-50"
                         >
-                          <td className="border-b border-slate-100 px-4 py-4">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleRow(lead.rowId)}
-                              className={`inline-flex size-4 items-center justify-center rounded-full border transition ${
-                                isSelected
-                                  ? "border-slate-900 bg-slate-900 text-white"
-                                  : "border-slate-300 bg-white text-transparent hover:border-cyan-500"
-                              }`}
-                              aria-label={`Select ${formatLeadName(lead)}`}
-                            >
-                              <svg
-                                viewBox="0 0 16 16"
-                                className="size-3"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <path d="m4 8 2.4 2.4L12 5" />
-                              </svg>
-                            </button>
-                          </td>
-                          <td className="border-b border-slate-100 px-4 py-4">
+                          <td className="min-w-0 border-b border-slate-100 px-3 py-4">
                             {lead.platform === "LinkedIn" ? (
                               <div className="flex items-center gap-3">
                                 {lead?.profilePictureUrl ? (
@@ -743,33 +659,35 @@ function LeadSearchHistoryPage() {
                                       : formatLeadName(lead)[0]?.toUpperCase() || '?'}
                                   </div>
                                 )}
-                                <div>
-                                  <p className="max-w-[220px] truncate text-sm font-semibold text-slate-900">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-slate-900">
                                     {formatLeadName(lead)}
                                   </p>
                                   {lead?.headline && (
-                                    <p className="max-w-[220px] truncate text-xs text-slate-500" title={lead.headline}>
+                                    <p className="truncate text-xs text-slate-500" title={lead.headline}>
                                       {lead.headline}
                                     </p>
                                   )}
                                 </div>
                               </div>
                             ) : (
-                              <p className="max-w-[220px] truncate text-sm font-semibold text-slate-900">
+                              <p className="truncate text-sm font-semibold text-slate-900" title={formatLeadName(lead)}>
                                 {formatLeadName(lead)}
                               </p>
                             )}
                           </td>
-                          <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
-                            {getEnrichedEmailSummary(lead)}
+                          <td className="min-w-0 border-b border-slate-100 px-3 py-4 text-sm text-slate-700">
+                            <p className="break-words" title={getEnrichedEmailSummary(lead)}>
+                              {getEnrichedEmailSummary(lead)}
+                            </p>
                           </td>
                           {platformFilter !== "LinkedIn" && (
-                            <td className="whitespace-nowrap border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
+                            <td className="break-words border-b border-slate-100 px-3 py-4 text-sm text-slate-700">
                               {lead.platform === "LinkedIn" ? "N/A" : (lead.phone || "N/A")}
                             </td>
                           )}
-                          <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
-                            <div className="max-w-[220px]">
+                          <td className="min-w-0 border-b border-slate-100 px-3 py-4 text-sm text-slate-700">
+                            <div className="min-w-0">
                               <p
                                 className={
                                   isAddressExpanded
@@ -795,13 +713,13 @@ function LeadSearchHistoryPage() {
                               ) : null}
                             </div>
                           </td>
-                          <td className="border-b border-slate-100 px-4 py-4">
+                          <td className="min-w-0 border-b border-slate-100 px-3 py-4">
                             <span className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
                               <span className="size-1.5 rounded-full bg-cyan-600" />
-                              {lead.platform}
+                              <span className="truncate">{lead.platform}</span>
                             </span>
                           </td>
-                          <td className="border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
+                          <td className="min-w-0 border-b border-slate-100 px-3 py-4 text-sm text-slate-700">
                             {lead.platform === "LinkedIn" ? (
                               <div className="flex flex-col gap-1 text-xs">
                                 <span className="inline-flex items-center gap-1 font-medium text-slate-700 bg-slate-100 rounded px-2 py-0.5 w-fit">
@@ -815,7 +733,7 @@ function LeadSearchHistoryPage() {
                               formatRating(lead.rating)
                             )}
                           </td>
-                          <td className="whitespace-nowrap border-b border-slate-100 px-4 py-4 text-sm text-slate-700">
+                          <td className="break-words border-b border-slate-100 px-3 py-4 text-sm text-slate-700">
                             {formatDate(lead.leadCreatedOn)}
                           </td>
                         </tr>
@@ -824,7 +742,7 @@ function LeadSearchHistoryPage() {
 
                     {!loading && filteredLeads.length === 0 ? (
                       <tr>
-                        <td colSpan={platformFilter === "LinkedIn" ? 7 : 8} className="px-5 py-14 text-center">
+                        <td colSpan={platformFilter === "LinkedIn" ? 6 : 7} className="px-5 py-14 text-center">
                           <p className="text-base font-bold text-slate-800">
                             No historical leads yet
                           </p>
@@ -842,7 +760,7 @@ function LeadSearchHistoryPage() {
                             key={`loading-${index}`}
                             className="animate-pulse"
                           >
-                            {Array.from({ length: platformFilter === "LinkedIn" ? 7 : 8 }).map((__, cellIndex) => (
+                            {Array.from({ length: platformFilter === "LinkedIn" ? 6 : 7 }).map((__, cellIndex) => (
                               <td
                                 key={cellIndex}
                                 className="border-b border-slate-100 px-4 py-4"

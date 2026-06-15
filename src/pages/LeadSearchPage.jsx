@@ -1170,12 +1170,12 @@ function LeadSearchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="mx-auto flex min-h-screen max-w-[1500px]">
+    <div className="h-screen overflow-hidden bg-slate-100">
+      <div className="mx-auto flex h-screen max-w-[1500px] overflow-hidden">
         <Sidebar />
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex flex-1 p-5">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="dashboard-scrollbar flex min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
             <main className="w-full min-w-0 space-y-5">
               <AdvancedFilteringCard
                 platforms={platformTargets}
