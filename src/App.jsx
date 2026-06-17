@@ -8,6 +8,7 @@ import LeadSearchPage from './pages/LeadSearchPage'
 import NotFoundPage from './pages/NotFoundPage'
 import SettingsPage from './pages/SettingsPage'
 import { ROUTES } from './routes'
+import { createZohoIntegration, initializeZohoWidgetSdk, retrieveZohoIntegrationList } from './services/zohoIntegration'
 
 function hasConnectedIntegration(payload) {
   const integrations = payload?.IntegrationList
@@ -274,6 +275,18 @@ function App() {
       return
     }
 
+    initializeZohoWidgetSdk().catch((error) => {
+      const message = error instanceof Error ? error.message : 'Unable to initialize Zoho Widget JavaScript SDK'
+      localStorage.setItem('zoho_widget_sdk_ready', 'false')
+      localStorage.setItem('zoho_widget_sdk_error', message)
+    })
+  }, [isKnownRoute])
+
+  useEffect(() => {
+    if (!isKnownRoute) {
+      return
+    }
+
     if (hasBootstrappedRef.current) {
       return
     }
@@ -357,29 +370,7 @@ function App() {
         localStorage.setItem('user_details_response', JSON.stringify(userPayload))
         localStorage.setItem('user_details', JSON.stringify(userPayload?.UserDetails || {}))
 
-        const integrationListResponse = await fetch(`${apiBaseUrl}/api/Integration/v1/RetrieveIntegrationList`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            DataCenter: 'crm.zoho.com',
-            referer: 'https://localhost:44352',
-          },
-          body: JSON.stringify({
-            orgIdentifier,
-          }),
-        })
-
-        if (!integrationListResponse.ok) {
-          throw new Error(`RetrieveIntegrationList failed (${integrationListResponse.status})`)
-        }
-
-        const integrationListPayload = await integrationListResponse.json()
-        const integrationListFailed =
-          integrationListPayload?.Code === 500 || String(integrationListPayload?.Status || '').toLowerCase() === 'failure'
-
-        if (integrationListFailed) {
-          throw new Error(integrationListPayload?.Reason || 'RetrieveIntegrationList failed')
-        }
+        const integrationListPayload = await retrieveZohoIntegrationList({ orgIdentifier }, { apiBaseUrl })
 
         localStorage.setItem('zoho_integration_list_response', JSON.stringify(integrationListPayload))
         localStorage.setItem('zoho_integration_list', JSON.stringify(integrationListPayload?.IntegrationList || []))
@@ -418,61 +409,18 @@ function App() {
       navigate(ROUTES.crm, { replace: true })
 
       try {
-        const requestUrl = `${integrationApiBaseUrl}/api/Integration/v1/CreateIntegration`
-        const requestBody = {
-          orgIdentifier: 'ORG-2012',
-          integrationAlias: 'Persona',
-          integrationType: 'Zoho',
-          GrantCode: grantCode,
-          integrationExpiryTime: '3600',
-        }
-        const requestHeaders = {
-          'Content-Type': 'application/json',
-          DataCenter: 'crm.zoho.com',
-          referer: 'https://localhost:44352',
-        }
-
-        const response = await fetch(requestUrl, {
-          method: 'POST',
-          headers: requestHeaders,
-          body: JSON.stringify(requestBody),
-        })
-
-        if (!response.ok) {
-          throw new Error(`CreateIntegration failed (${response.status})`)
-        }
-
-        const payload = await response.json()
-        const integrationFailed =
-          payload?.Code === 500 || String(payload?.Status || '').toLowerCase() === 'failure'
-
-        if (integrationFailed) {
-          throw new Error(payload?.Reason || 'CreateIntegration failed')
-        }
+        const payload = await createZohoIntegration(
+          { grantCode, orgIdentifier: 'ORG-2012' },
+          { apiBaseUrl: integrationApiBaseUrl },
+        )
 
         localStorage.setItem('zoho_integration_response', JSON.stringify(payload))
 
         try {
-          const retrieveListRequestBody = {
-            orgIdentifier: 'ORG-2012',
-          }
-          const retrieveListResponse = await fetch(`${integrationApiBaseUrl}/api/Integration/v1/RetrieveIntegrationList`, {
-            method: 'POST',
-            headers: requestHeaders,
-            body: JSON.stringify(retrieveListRequestBody),
-          })
-
-          if (!retrieveListResponse.ok) {
-            throw new Error(`RetrieveIntegrationList failed (${retrieveListResponse.status})`)
-          }
-
-          const retrieveListPayload = await retrieveListResponse.json()
-          const retrieveListFailed =
-            retrieveListPayload?.Code === 500 || String(retrieveListPayload?.Status || '').toLowerCase() === 'failure'
-
-          if (retrieveListFailed) {
-            throw new Error(retrieveListPayload?.Reason || 'RetrieveIntegrationList failed')
-          }
+          const retrieveListPayload = await retrieveZohoIntegrationList(
+            { orgIdentifier: 'ORG-2012' },
+            { apiBaseUrl: integrationApiBaseUrl },
+          )
 
           localStorage.setItem('zoho_integration_list_response', JSON.stringify(retrieveListPayload))
           localStorage.setItem('zoho_integration_list', JSON.stringify(retrieveListPayload?.IntegrationList || []))

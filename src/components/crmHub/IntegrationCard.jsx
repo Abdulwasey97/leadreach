@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { deleteZohoIntegration, retrieveZohoAuthUrl } from '../../services/zohoIntegration'
 
 function IntegrationIcon({ icon }) {
   if (typeof icon === 'string' && /^https?:\/\//.test(icon)) {
@@ -68,30 +69,8 @@ function IntegrationCard({ integration }) {
     setErrorMessage('')
 
     try {
-      const requestUrl = `${apiBaseUrl}/api/Integration/v1/RetrieveAuthUrl`
-      const requestHeaders = {
-        DataCenter: 'crm.zoho.com',
-      }
-
-      const response = await fetch(requestUrl, {
-        method: 'GET',
-        headers: requestHeaders,
-      })
-
-      if (!response.ok) {
-        throw new Error(`Auth URL request failed (${response.status})`)
-      }
-
-      const payload = await response.json()
-      const authUrl =
-        payload?.Auth_Urls?.Zoho_AuthUrl || payload?.authUrl || payload?.url || payload?.data || payload
-
-      if (typeof authUrl === 'string' && authUrl) {
-        window.open(authUrl, '_blank', 'noopener,noreferrer')
-        return
-      }
-
-      throw new Error('Auth URL not found in API response')
+      const authUrl = await retrieveZohoAuthUrl({ apiBaseUrl })
+      window.open(authUrl, '_blank', 'noopener,noreferrer')
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to connect to Zoho CRM')
     } finally {
@@ -121,27 +100,7 @@ function IntegrationCard({ integration }) {
     setErrorMessage('')
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/Integration/v1/DeleteIntegration`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          integrationIdentifier,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`DeleteIntegration failed (${response.status})`)
-      }
-
-      const payload = await response.json()
-      const deleteFailed =
-        payload?.Code !== 200 || !['success', 'succcess'].includes(String(payload?.Status || '').toLowerCase())
-
-      if (deleteFailed) {
-        throw new Error(payload?.Reason || 'DeleteIntegration failed')
-      }
+      const payload = await deleteZohoIntegration({ integrationIdentifier }, { apiBaseUrl })
 
       localStorage.setItem('zoho_connected', 'false')
       localStorage.removeItem('zoho_grant_code')

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import AdvancedFilteringCard from '../components/leadSearch/AdvancedFilteringCard'
 import Sidebar from '../components/layout/Sidebar'
 import { platformTargets } from '../data/leadSearchData'
+import { exportToZohoCrm, fetchZohoFields, fetchZohoModules, getStoredOrgIdentifier } from '../services/zohoIntegration'
 
 const EMAIL_TYPES_BY_CATEGORY = {
   personal: ['gmail', 'outlook', 'hotmail', 'yahoo'],
@@ -429,14 +430,6 @@ const findNestedValue = (source, keys) => {
   return ''
 }
 
-const getIntegrationOrgIdentifierFromStorage = () =>
-  localStorage.getItem('module_list_org_identifier') ||
-  localStorage.getItem('field_list_org_identifier') ||
-  localStorage.getItem('organization_identifier') ||
-  import.meta.env.VITE_MODULE_LIST_ORG_IDENTIFIER ||
-  import.meta.env.VITE_FIELD_LIST_ORG_IDENTIFIER ||
-  ''
-
 const getIntegrationAccessTokenFromStorage = () => {
   const directToken =
     localStorage.getItem('integration_access_token') ||
@@ -579,32 +572,17 @@ function LeadSearchPage() {
     }
 
     const controller = new AbortController()
-    const moduleListApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44352'
-
     const fetchExportModules = async () => {
       setExportModulesLoading(true)
       setExportModulesError('')
 
       try {
-        const response = await fetch(`${moduleListApiBaseUrl}/api/Integration/v1/Module_List`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            DataCenter: 'crm.zoho.com',
-            referer: 'https://localhost:44352',
-          },
-          body: JSON.stringify({
-            orgIdentifier: getIntegrationOrgIdentifierFromStorage(),
-            integrationAccessToken: getIntegrationAccessTokenFromStorage(),
-          }),
+        const payload = await fetchZohoModules({
+          orgIdentifier: getStoredOrgIdentifier(),
+          integrationAccessToken: getIntegrationAccessTokenFromStorage(),
+        }, {
           signal: controller.signal,
         })
-
-        if (!response.ok) {
-          throw new Error(`Module_List failed (${response.status})`)
-        }
-
-        const payload = await response.json()
         const modules = normalizeModuleList(payload)
 
         if (!modules.length) {
@@ -637,33 +615,18 @@ function LeadSearchPage() {
     }
 
     const controller = new AbortController()
-    const fieldListApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44352'
-
     const fetchCrmFields = async () => {
       setCrmFieldsLoading(true)
       setCrmFieldsError('')
 
       try {
-        const response = await fetch(`${fieldListApiBaseUrl}/api/Integration/v1/Field_List`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            DataCenter: 'crm.zoho.com',
-            referer: 'https://localhost:44352',
-          },
-          body: JSON.stringify({
-            orgIdentifier: getIntegrationOrgIdentifierFromStorage(),
-            integrationAccessToken: getIntegrationAccessTokenFromStorage(),
-            moduleName: exportModule,
-          }),
+        const payload = await fetchZohoFields({
+          orgIdentifier: getStoredOrgIdentifier(),
+          integrationAccessToken: getIntegrationAccessTokenFromStorage(),
+          moduleName: exportModule,
+        }, {
           signal: controller.signal,
         })
-
-        if (!response.ok) {
-          throw new Error(`Field_List failed (${response.status})`)
-        }
-
-        const payload = await response.json()
         const fields = normalizeFieldList(payload)
 
         if (!fields.length) {
@@ -735,14 +698,18 @@ function LeadSearchPage() {
   }, [availablePlatformIds, selectedSource])
 
   useEffect(() => {
-    const cachedState = searchStateByPlatform[selectedSource]
-    setLeads(cachedState?.leads || [])
-    setTotalLeads(cachedState?.totalLeads || 0)
-    setSelectedRows({})
-    setEnrichEmailsByRow({})
-    setEnrichCompletedByRow({})
-    setEnrichLoadingByRow({})
-    setCurrentPage(1)
+    const timeoutId = window.setTimeout(() => {
+      const cachedState = searchStateByPlatform[selectedSource]
+      setLeads(cachedState?.leads || [])
+      setTotalLeads(cachedState?.totalLeads || 0)
+      setSelectedRows({})
+      setEnrichEmailsByRow({})
+      setEnrichCompletedByRow({})
+      setEnrichLoadingByRow({})
+      setCurrentPage(1)
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [searchStateByPlatform, selectedSource])
 
   const handleToggleEmailType = (type) => {
@@ -1005,37 +972,16 @@ function LeadSearchPage() {
     setExportSubmitting(true)
 
     try {
-      const exportApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://localhost:44352'
       const integrationAccessToken = getIntegrationAccessTokenFromStorage()
       if (!integrationAccessToken) {
         throw new Error('Missing integration access token. Please reconnect Zoho and try again.')
       }
 
-      const response = await fetch(`${exportApiBaseUrl}/api/Integration/ExportToCrm`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          integrationType: 'Zoho',
-          integrationAccessToken,
-          moduleName: exportModule,
-          dataToExport,
-        }),
+      const payload = await exportToZohoCrm({
+        integrationAccessToken,
+        moduleName: exportModule,
+        dataToExport,
       })
-
-      if (!response.ok) {
-        throw new Error(`ExportToCrm failed (${response.status})`)
-      }
-
-      const payload = await response.json().catch(() => ({}))
-      const exportFailed =
-        payload?.Code === 500 ||
-        (payload?.Status && String(payload.Status).toLowerCase() !== 'success' && payload.Code !== 200)
-
-      if (exportFailed) {
-        throw new Error(payload?.Reason || 'ExportToCrm failed')
-      }
 
       window.dispatchEvent(
         new CustomEvent('zoho-toast', {

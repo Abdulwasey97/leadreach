@@ -61,7 +61,11 @@ function SettingsPage() {
   }, [])
 
   useEffect(() => {
-    setUsersPage((currentPage) => Math.min(currentPage, totalUserPages))
+    const timeoutId = window.setTimeout(() => {
+      setUsersPage((currentPage) => Math.min(currentPage, totalUserPages))
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [totalUserPages])
 
   return (
