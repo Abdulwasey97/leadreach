@@ -271,6 +271,30 @@ function App() {
   }, [])
 
   useEffect(() => {
+    const handleZohoConsentComplete = (event) => {
+      if (event.origin !== window.location.origin || event.data?.type !== 'leadreach-zoho-consent-complete') {
+        return
+      }
+
+      window.focus?.()
+      navigate(ROUTES.crm, { replace: true })
+      window.dispatchEvent(new Event('zoho-connection-updated'))
+
+      if (event.data?.error) {
+        showErrorToast(event.data.error)
+        return
+      }
+
+      showSuccessToast('Retrieved successfully')
+    }
+
+    window.addEventListener('message', handleZohoConsentComplete)
+    return () => {
+      window.removeEventListener('message', handleZohoConsentComplete)
+    }
+  }, [navigate])
+
+  useEffect(() => {
     if (!isKnownRoute) {
       return
     }
@@ -406,7 +430,7 @@ function App() {
     const finalizeOAuth = async () => {
       localStorage.setItem('zoho_grant_code', grantCode)
       localStorage.setItem('zoho_datacenter', 'crm.zoho.com')
-      navigate(ROUTES.crm, { replace: true })
+      let consentError = ''
 
       try {
         const payload = await createZohoIntegration(
@@ -431,18 +455,33 @@ function App() {
           showSuccessToast('Retrieved successfully')
         } catch (error) {
           const failureMessage = error instanceof Error ? error.message : 'RetrieveIntegrationList request failed'
+          consentError = failureMessage
           localStorage.setItem('zoho_integration_error', failureMessage)
           showErrorToast(failureMessage)
         }
       } catch (error) {
         const failureMessage = error instanceof Error ? error.message : 'Integration setup request failed'
+        consentError = failureMessage
         localStorage.setItem('zoho_connected', 'false')
         localStorage.setItem('zoho_integration_error', failureMessage)
         window.dispatchEvent(new Event('zoho-connection-updated'))
         showErrorToast(failureMessage)
-      } finally {
-        navigate(ROUTES.crm, { replace: true })
       }
+
+      const consentMessage = {
+        type: 'leadreach-zoho-consent-complete',
+        connected: localStorage.getItem('zoho_connected') === 'true',
+        error: consentError,
+      }
+
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(consentMessage, window.location.origin)
+        window.opener.focus?.()
+        window.setTimeout(() => window.close(), 100)
+        return
+      }
+
+      navigate(ROUTES.crm, { replace: true })
     }
 
     finalizeOAuth()

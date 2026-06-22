@@ -70,7 +70,13 @@ function IntegrationCard({ integration }) {
 
     try {
       const authUrl = await retrieveZohoAuthUrl({ apiBaseUrl })
-      window.open(authUrl, '_blank', 'noopener,noreferrer')
+      const consentWindow = window.open(authUrl, 'leadreach_zoho_consent')
+
+      if (!consentWindow) {
+        throw new Error('Popup blocked. Please allow popups and try again.')
+      }
+
+      consentWindow.focus?.()
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to connect to Zoho CRM')
     } finally {

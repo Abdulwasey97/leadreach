@@ -10,6 +10,20 @@ export const ZOHO_INTEGRATION_TYPE = 'Zoho'
 let widgetSdkLoadPromise
 let widgetInitPromise
 
+function isZohoIframeContext() {
+  return window.self !== window.top || /(^|\.)zoho\./i.test(document.referrer)
+}
+
+async function storeZohoCrmContext(pageLoadData) {
+  const storeContext = window.leadReachStoreZohoContext
+
+  if (typeof storeContext !== 'function') {
+    return null
+  }
+
+  return storeContext(pageLoadData)
+}
+
 export function getZohoApiBaseUrl() {
   return import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_INTEGRATION_API_BASE_URL || DEFAULT_API_BASE_URL
 }
@@ -82,6 +96,12 @@ export async function initializeZohoWidgetSdk({ onPageLoad, onNotify, onNotifyAn
     zoho.embeddedApp.on('PageLoad', (data) => {
       localStorage.setItem('zoho_widget_page_load', JSON.stringify(data || {}))
       window.dispatchEvent(new CustomEvent('zoho-widget-page-load', { detail: data || {} }))
+      storeZohoCrmContext(data || {}).catch((error) => {
+        localStorage.setItem(
+          'zoho_crm_context_error',
+          error instanceof Error ? error.message : 'Unable to store Zoho CRM context',
+        )
+      })
       onPageLoad?.(data || {})
     })
 
@@ -99,8 +119,18 @@ export async function initializeZohoWidgetSdk({ onPageLoad, onNotify, onNotifyAn
 
     zoho.embeddedApp.init()
     localStorage.setItem('zoho_widget_sdk_ready', 'true')
+    localStorage.setItem('zoho_widget_iframe_context', isZohoIframeContext() ? 'true' : 'false')
     localStorage.removeItem('zoho_widget_sdk_error')
     window.dispatchEvent(new Event('zoho-widget-sdk-ready'))
+
+    if (isZohoIframeContext()) {
+      storeZohoCrmContext().catch((error) => {
+        localStorage.setItem(
+          'zoho_crm_context_error',
+          error instanceof Error ? error.message : 'Unable to store Zoho CRM context',
+        )
+      })
+    }
 
     return zoho
   })
