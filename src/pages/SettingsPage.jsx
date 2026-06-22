@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import Sidebar from '../components/layout/Sidebar'
 import TopNavbar from '../components/layout/TopNavbar'
-import { ROUTES } from '../routes'
 
 const settingsTopNavItems = ['Organization', 'Team']
 const USERS_PAGE_SIZE = 5
@@ -380,9 +378,7 @@ function SettingsPage() {
                       <p className="text-xs font-medium text-slate-500">Contact your dedicated account manager</p>
                     </div>
                   </div>
-                  <Link to={ROUTES.help} className="shrink-0 text-sm font-bold text-cyan-700 transition hover:text-cyan-900">
-                    Open Ticket
-                  </Link>
+                  <span className="shrink-0 text-sm font-bold text-slate-500">Priority</span>
                 </article>
               </div>
 

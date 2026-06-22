@@ -4,7 +4,6 @@ export const ROUTES = {
   history: "/history",
   crm: "/crm",
   settings: "/settings",
-  help: "/help",
 };
 
 export const navigationItems = [
@@ -36,8 +35,6 @@ const NAV_ID_ALIASES = {
   crm: "crm",
   crmhub: "crm",
   settings: "settings",
-  help: "help",
-  helpcenter: "help",
 };
 
 export function normalizeNavId(value) {

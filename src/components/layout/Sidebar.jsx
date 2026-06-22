@@ -79,7 +79,6 @@ function Sidebar() {
       setIsOpen(event.matches)
     }
 
-    setIsOpen(mediaQuery.matches)
     mediaQuery.addEventListener('change', handleViewportChange)
 
     return () => {
@@ -174,36 +173,6 @@ function Sidebar() {
             </NavLink>
           ))}
         </nav>
-
-        <div className="mt-auto space-y-3">
-          <NavLink
-            to={ROUTES.help}
-            onClick={closeMobileSidebar}
-            className={({ isActive }) =>
-              `flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
-                isActive
-                  ? 'border-l-2 border-cyan-500 bg-cyan-50 text-cyan-700 shadow-sm shadow-cyan-100/60'
-                  : 'text-slate-500 hover:bg-white hover:text-slate-800'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <span
-                  className={`inline-flex size-5 items-center justify-center rounded-full text-xs font-semibold ${
-                    isActive
-                      ? 'bg-cyan-100 text-cyan-700'
-                      : 'bg-slate-200 text-slate-600'
-                  }`}
-                >
-                  ?
-                </span>
-                Help Center
-              </>
-            )}
-          </NavLink>
-
-        </div>
       </aside>
     </>
   )
