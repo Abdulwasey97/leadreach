@@ -1,3 +1,5 @@
+import { crmError, crmLog, crmWarn } from '../utils/diagnostics'
+
 const DEFAULT_API_BASE_URL = 'https://leadreach.api-pct.com'
 const DEFAULT_DATA_CENTER = 'crm.zoho.com'
 const DEFAULT_REFERER = 'https://localhost:44352'
@@ -53,21 +55,55 @@ export function getZohoWidgetSdk() {
 
 export function loadZohoWidgetSdk() {
   if (window.ZOHO?.embeddedApp) {
+    crmLog('Zoho Widget SDK already available')
     return Promise.resolve(window.ZOHO)
   }
 
   if (widgetSdkLoadPromise) {
+    crmLog('Reusing Zoho Widget SDK load promise')
     return widgetSdkLoadPromise
   }
+
+  crmLog('Loading Zoho Widget SDK', {
+    hasExistingScript: Boolean(document.getElementById(ZOHO_WIDGET_SDK_SCRIPT_ID)),
+  })
 
   widgetSdkLoadPromise = new Promise((resolve, reject) => {
     const existingScript = document.getElementById(ZOHO_WIDGET_SDK_SCRIPT_ID)
 
     if (existingScript) {
-      existingScript.addEventListener('load', () => resolve(window.ZOHO), { once: true })
-      existingScript.addEventListener('error', () => reject(new Error('Unable to load Zoho Widget JavaScript SDK')), {
-        once: true,
-      })
+      if (existingScript.dataset.sdkLoadState === 'loaded') {
+        crmLog('Existing Zoho Widget SDK script was already loaded', { hasZoho: Boolean(window.ZOHO) })
+        resolve(window.ZOHO)
+        return
+      }
+
+      if (existingScript.dataset.sdkLoadState === 'error') {
+        const error = new Error('Unable to load Zoho Widget JavaScript SDK')
+        crmError('Existing Zoho Widget SDK script had already failed', error)
+        reject(error)
+        return
+      }
+
+      existingScript.addEventListener(
+        'load',
+        () => {
+          crmLog('Existing Zoho Widget SDK script loaded', { hasZoho: Boolean(window.ZOHO) })
+          resolve(window.ZOHO)
+        },
+        { once: true },
+      )
+      existingScript.addEventListener(
+        'error',
+        () => {
+          const error = new Error('Unable to load Zoho Widget JavaScript SDK')
+          crmError('Existing Zoho Widget SDK script failed', error)
+          reject(error)
+        },
+        {
+          once: true,
+        },
+      )
       return
     }
 
@@ -75,8 +111,15 @@ export function loadZohoWidgetSdk() {
     script.id = ZOHO_WIDGET_SDK_SCRIPT_ID
     script.src = ZOHO_WIDGET_SDK_URL
     script.async = true
-    script.onload = () => resolve(window.ZOHO)
-    script.onerror = () => reject(new Error('Unable to load Zoho Widget JavaScript SDK'))
+    script.onload = () => {
+      crmLog('Zoho Widget SDK script loaded', { hasZoho: Boolean(window.ZOHO) })
+      resolve(window.ZOHO)
+    }
+    script.onerror = () => {
+      const error = new Error('Unable to load Zoho Widget JavaScript SDK')
+      crmError('Zoho Widget SDK script failed', error)
+      reject(error)
+    }
     document.head.appendChild(script)
   })
 
@@ -85,18 +128,27 @@ export function loadZohoWidgetSdk() {
 
 export async function initializeZohoWidgetSdk({ onPageLoad, onNotify, onNotifyAndWait } = {}) {
   if (widgetInitPromise) {
+    crmLog('Reusing Zoho Widget SDK init promise')
     return widgetInitPromise
   }
 
   widgetInitPromise = loadZohoWidgetSdk().then((zoho) => {
     if (!zoho?.embeddedApp?.on || !zoho?.embeddedApp?.init) {
+      crmError('Zoho Widget SDK object missing embeddedApp methods', {
+        hasZoho: Boolean(zoho),
+        hasEmbeddedApp: Boolean(zoho?.embeddedApp),
+      })
       throw new Error('Zoho Widget JavaScript SDK is unavailable')
     }
 
+    crmLog('Registering Zoho embedded app events')
+
     zoho.embeddedApp.on('PageLoad', (data) => {
+      crmLog('Zoho PageLoad event received', data || {})
       localStorage.setItem('zoho_widget_page_load', JSON.stringify(data || {}))
       window.dispatchEvent(new CustomEvent('zoho-widget-page-load', { detail: data || {} }))
       storeZohoCrmContext(data || {}).catch((error) => {
+        crmError('Unable to store Zoho CRM context after PageLoad', error)
         localStorage.setItem(
           'zoho_crm_context_error',
           error instanceof Error ? error.message : 'Unable to store Zoho CRM context',
@@ -106,25 +158,32 @@ export async function initializeZohoWidgetSdk({ onPageLoad, onNotify, onNotifyAn
     })
 
     zoho.embeddedApp.on('Notify', (data) => {
+      crmLog('Zoho Notify event received', data || {})
       localStorage.setItem('zoho_widget_notify', JSON.stringify(data || {}))
       window.dispatchEvent(new CustomEvent('zoho-widget-notify', { detail: data || {} }))
       onNotify?.(data || {})
     })
 
     zoho.embeddedApp.on('NotifyAndWait', (data) => {
+      crmLog('Zoho NotifyAndWait event received', data || {})
       localStorage.setItem('zoho_widget_notify_and_wait', JSON.stringify(data || {}))
       window.dispatchEvent(new CustomEvent('zoho-widget-notify-and-wait', { detail: data || {} }))
       onNotifyAndWait?.(data || {})
     })
 
+    crmLog('Calling Zoho embeddedApp.init')
     zoho.embeddedApp.init()
     localStorage.setItem('zoho_widget_sdk_ready', 'true')
     localStorage.setItem('zoho_widget_iframe_context', isZohoIframeContext() ? 'true' : 'false')
     localStorage.removeItem('zoho_widget_sdk_error')
     window.dispatchEvent(new Event('zoho-widget-sdk-ready'))
+    crmLog('Zoho Widget SDK initialized', {
+      inZohoIframe: isZohoIframeContext(),
+    })
 
     if (isZohoIframeContext()) {
       storeZohoCrmContext().catch((error) => {
+        crmError('Unable to store initial Zoho CRM context', error)
         localStorage.setItem(
           'zoho_crm_context_error',
           error instanceof Error ? error.message : 'Unable to store Zoho CRM context',
@@ -148,6 +207,15 @@ async function parseJsonResponse(response) {
 
 async function requestZohoIntegration(path, options = {}) {
   const { apiBaseUrl = getZohoApiBaseUrl(), body, headers, ...requestOptions } = options
+  const method = requestOptions.method || 'GET'
+
+  crmLog('API request started', {
+    method,
+    path,
+    apiBaseUrl,
+    body,
+  })
+
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...requestOptions,
     headers: getZohoRequestHeaders(headers),
@@ -156,11 +224,28 @@ async function requestZohoIntegration(path, options = {}) {
 
   const payload = await parseJsonResponse(response)
 
+  crmLog('API response received', {
+    method,
+    path,
+    status: response.status,
+    ok: response.ok,
+    payload,
+  })
+
   if (!response.ok) {
+    crmError('API response was not ok', {
+      path,
+      status: response.status,
+      payload,
+    })
     throw new Error(`${path.split('/').pop()} failed (${response.status})`)
   }
 
   if (isFailurePayload(payload)) {
+    crmWarn('API returned failure payload', {
+      path,
+      payload,
+    })
     throw new Error(payload?.Reason || `${path.split('/').pop()} failed`)
   }
 

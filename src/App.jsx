@@ -8,6 +8,7 @@ import NotFoundPage from './pages/NotFoundPage'
 import SettingsPage from './pages/SettingsPage'
 import { ROUTES } from './routes'
 import { createZohoIntegration, initializeZohoWidgetSdk, retrieveZohoIntegrationList } from './services/zohoIntegration'
+import { crmError, crmLog } from './utils/diagnostics'
 
 function hasConnectedIntegration(payload) {
   const integrations = payload?.IntegrationList
@@ -232,6 +233,16 @@ function App() {
   const [successToast, setSuccessToast] = useState('')
   const [isBootstrapping, setIsBootstrapping] = useState(isKnownRoute)
 
+  useEffect(() => {
+    crmLog('App route evaluated', {
+      pathname: location.pathname,
+      search: location.search,
+      hash: window.location.hash,
+      isKnownRoute,
+      isBootstrapping,
+    })
+  }, [isBootstrapping, isKnownRoute, location.pathname, location.search])
+
   const showErrorToast = (message) => {
     setErrorToast(message)
     window.setTimeout(() => {
@@ -300,6 +311,7 @@ function App() {
 
     initializeZohoWidgetSdk().catch((error) => {
       const message = error instanceof Error ? error.message : 'Unable to initialize Zoho Widget JavaScript SDK'
+      crmError('Zoho Widget SDK initialization failed', error)
       localStorage.setItem('zoho_widget_sdk_ready', 'false')
       localStorage.setItem('zoho_widget_sdk_error', message)
     })
@@ -317,6 +329,12 @@ function App() {
     hasBootstrappedRef.current = true
 
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://leadreach.api-pct.com'
+    crmLog('Bootstrap started', {
+      apiBaseUrl,
+      href: window.location.href,
+      referrer: document.referrer,
+      inIframe: window.self !== window.top,
+    })
 
     const bootstrapOrgAndUser = async () => {
       const orgRequestBody = {
@@ -329,6 +347,7 @@ function App() {
       }
 
       try {
+        crmLog('FetchOrganizationDetails started', orgRequestBody)
         const orgResponse = await fetch(`${apiBaseUrl}/api/Org/v1/FetchOrganizationDetails`, {
           method: 'POST',
           headers: {
@@ -340,13 +359,19 @@ function App() {
         })
 
         if (!orgResponse.ok) {
+          crmError('FetchOrganizationDetails HTTP failure', {
+            status: orgResponse.status,
+            statusText: orgResponse.statusText,
+          })
           throw new Error(`FetchOrganizationDetails failed (${orgResponse.status})`)
         }
 
         const orgPayload = await orgResponse.json()
+        crmLog('FetchOrganizationDetails response parsed', orgPayload)
         const orgFailed = orgPayload?.Code === 500 || String(orgPayload?.Status || '').toLowerCase() === 'failure'
 
         if (orgFailed) {
+          crmError('FetchOrganizationDetails returned failure payload', orgPayload)
           throw new Error(orgPayload?.Reason || 'FetchOrganizationDetails failed')
         }
 
@@ -360,6 +385,7 @@ function App() {
           orgRequestBody.orgIdentifier
 
         localStorage.setItem('organization_identifier', orgIdentifier)
+        crmLog('Organization identifier stored', { orgIdentifier })
 
         const userRequestBody = {
           userName: 'hassan.ali',
@@ -371,6 +397,10 @@ function App() {
           orgIdentifier,
         }
 
+        crmLog('FetchUserDetails started', {
+          ...userRequestBody,
+          userPass: '[hidden]',
+        })
         const userResponse = await fetch(`${apiBaseUrl}/api/User/v1/FetchUserDetails`, {
           method: 'POST',
           headers: {
@@ -380,13 +410,19 @@ function App() {
         })
 
         if (!userResponse.ok) {
+          crmError('FetchUserDetails HTTP failure', {
+            status: userResponse.status,
+            statusText: userResponse.statusText,
+          })
           throw new Error(`FetchUserDetails failed (${userResponse.status})`)
         }
 
         const userPayload = await userResponse.json()
+        crmLog('FetchUserDetails response parsed', userPayload)
         const userFailed = userPayload?.Code === 500 || String(userPayload?.Status || '').toLowerCase() === 'failure'
 
         if (userFailed) {
+          crmError('FetchUserDetails returned failure payload', userPayload)
           throw new Error(userPayload?.Reason || 'FetchUserDetails failed')
         }
 
@@ -394,6 +430,7 @@ function App() {
         localStorage.setItem('user_details', JSON.stringify(userPayload?.UserDetails || {}))
 
         const integrationListPayload = await retrieveZohoIntegrationList({ orgIdentifier }, { apiBaseUrl })
+        crmLog('RetrieveIntegrationList completed during bootstrap', integrationListPayload)
 
         localStorage.setItem('zoho_integration_list_response', JSON.stringify(integrationListPayload))
         localStorage.setItem('zoho_integration_list', JSON.stringify(integrationListPayload?.IntegrationList || []))
@@ -403,8 +440,10 @@ function App() {
         window.dispatchEvent(new Event('zoho-connection-updated'))
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to fetch organization/user details'
+        crmError('Bootstrap failed', error)
         localStorage.setItem('bootstrap_details_error', message)
       } finally {
+        crmLog('Bootstrap finished')
         setIsBootstrapping(false)
       }
     }
@@ -421,12 +460,17 @@ function App() {
     const grantCode = params.get('code')
 
     if (!grantCode) {
+      crmLog('OAuth finalize skipped: no grant code')
       return
     }
 
     const integrationApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://leadreach.api-pct.com'
 
     const finalizeOAuth = async () => {
+      crmLog('OAuth finalize started', {
+        integrationApiBaseUrl,
+        hasGrantCode: Boolean(grantCode),
+      })
       localStorage.setItem('zoho_grant_code', grantCode)
       localStorage.setItem('zoho_datacenter', 'crm.zoho.com')
       let consentError = ''
@@ -438,6 +482,7 @@ function App() {
         )
 
         localStorage.setItem('zoho_integration_response', JSON.stringify(payload))
+        crmLog('CreateIntegration completed', payload)
 
         try {
           const retrieveListPayload = await retrieveZohoIntegrationList(
@@ -446,6 +491,7 @@ function App() {
           )
 
           localStorage.setItem('zoho_integration_list_response', JSON.stringify(retrieveListPayload))
+          crmLog('RetrieveIntegrationList completed after OAuth', retrieveListPayload)
           localStorage.setItem('zoho_integration_list', JSON.stringify(retrieveListPayload?.IntegrationList || []))
           localStorage.setItem('integration_access_token', getIntegrationAccessToken(retrieveListPayload))
           localStorage.setItem('zoho_connected', hasConnectedIntegration(retrieveListPayload) ? 'true' : 'false')
@@ -454,12 +500,14 @@ function App() {
           showSuccessToast('Retrieved successfully')
         } catch (error) {
           const failureMessage = error instanceof Error ? error.message : 'RetrieveIntegrationList request failed'
+          crmError('RetrieveIntegrationList failed after OAuth', error)
           consentError = failureMessage
           localStorage.setItem('zoho_integration_error', failureMessage)
           showErrorToast(failureMessage)
         }
       } catch (error) {
         const failureMessage = error instanceof Error ? error.message : 'Integration setup request failed'
+        crmError('CreateIntegration failed', error)
         consentError = failureMessage
         localStorage.setItem('zoho_connected', 'false')
         localStorage.setItem('zoho_integration_error', failureMessage)
@@ -474,12 +522,14 @@ function App() {
       }
 
       if (window.opener && !window.opener.closed) {
+        crmLog('Posting OAuth result to opener', consentMessage)
         window.opener.postMessage(consentMessage, window.location.origin)
         window.opener.focus?.()
         window.setTimeout(() => window.close(), 100)
         return
       }
 
+      crmLog('OAuth finalize finished without opener', consentMessage)
       navigate(ROUTES.crm, { replace: true })
     }
 
