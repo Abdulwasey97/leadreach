@@ -4,6 +4,7 @@ import StatsGrid from "../components/dashboard/StatsGrid";
 import RightRail from "../components/layout/RightRail";
 
 import Sidebar from "../components/layout/Sidebar";
+import { getStoredOrgIdentifier } from "../services/zohoIntegration";
 
 function safeParseJson(value) {
   try {
@@ -30,11 +31,11 @@ function getOrgIdentifierFromStorage() {
   );
 
   return (
-    localStorage.getItem("organization_identifier") ||
+    getStoredOrgIdentifier() ||
     orgPayload?.OrganizationDetails?.orgIdentifier ||
     orgPayload?.OrgDetails?.organizationID ||
     orgPayload?.orgIdentifier ||
-    "ORG-2012"
+    ""
   );
 }
 

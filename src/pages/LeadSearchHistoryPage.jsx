@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/layout/Sidebar";
+import { getStoredOrgIdentifier } from "../services/zohoIntegration";
 
 const PAGE_SIZE = 10;
 
@@ -291,13 +292,16 @@ function LeadSearchHistoryPage() {
     setLoading(true);
     setError("");
 
-    const orgIdentifier =
-      localStorage.getItem("organization_identifier") || "ORG-2012";
+    const orgIdentifier = getStoredOrgIdentifier();
     const selectedSource = PLATFORM_SOURCES.find(
       (source) => source.platform === platformFilter,
     );
 
     try {
+      if (!orgIdentifier) {
+        throw new Error("Zoho organization details are not available yet. Please reload the widget and try again.");
+      }
+
       const searchedLeads = await fetchSearchedLeads(
         apiBaseUrl,
         orgIdentifier,

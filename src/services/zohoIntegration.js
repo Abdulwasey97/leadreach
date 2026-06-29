@@ -3,7 +3,6 @@ import { crmError, crmLog, crmWarn } from '../utils/diagnostics'
 const DEFAULT_API_BASE_URL = 'https://leadreach.api-pct.com'
 const DEFAULT_DATA_CENTER = 'crm.zoho.com'
 const DEFAULT_REFERER = 'https://localhost:44352'
-const DEFAULT_ORG_IDENTIFIER = 'ORG-2012'
 const ZOHO_WIDGET_SDK_URL = 'https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js'
 const ZOHO_WIDGET_SDK_SCRIPT_ID = 'zoho-widget-javascript-sdk'
 
@@ -26,6 +25,211 @@ async function storeZohoCrmContext(pageLoadData) {
   return storeContext(pageLoadData)
 }
 
+const safeParseJson = (value) => {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return null
+  }
+}
+
+const compactObject = (value) =>
+  Object.fromEntries(
+    Object.entries(value).filter(([, entryValue]) => entryValue !== undefined && entryValue !== null && entryValue !== ''),
+  )
+
+const firstArrayItem = (...values) => {
+  for (const value of values) {
+    if (Array.isArray(value) && value.length > 0) {
+      return value[0]
+    }
+  }
+
+  return null
+}
+
+const pickNestedValue = (source, keys) => {
+  if (!source || typeof source !== 'object') {
+    return ''
+  }
+
+  for (const key of keys) {
+    if (source[key] !== undefined && source[key] !== null && source[key] !== '') {
+      return source[key]
+    }
+  }
+
+  for (const value of Object.values(source)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const nestedValue = pickNestedValue(item, keys)
+        if (nestedValue) {
+          return nestedValue
+        }
+      }
+    } else if (value && typeof value === 'object') {
+      const nestedValue = pickNestedValue(value, keys)
+      if (nestedValue) {
+        return nestedValue
+      }
+    }
+  }
+
+  return ''
+}
+
+export function getStoredZohoOrgInfo() {
+  const payload = safeParseJson(localStorage.getItem('zoho_crm_org_response') || '{}') || {}
+  return firstArrayItem(payload.org, payload.orgInfo, payload.OrgInfo, payload.data, payload.Data) || payload
+}
+
+export function getStoredZohoUserInfo() {
+  const payload = safeParseJson(localStorage.getItem('zoho_crm_user_response') || '{}') || {}
+  return firstArrayItem(payload.users, payload.Users, payload.user, payload.User, payload.data, payload.Data) || payload
+}
+
+export function getStoredZohoOrgIdentifier() {
+  const orgInfo = getStoredZohoOrgInfo()
+  
+  if (isZohoIframeContext()) {
+    const zgid = String(
+      pickNestedValue(orgInfo, [
+        'zgid',
+        'zg_id',
+        'ezgid',
+        'ezg_id',
+      ]) || '',
+    ).trim()
+    if (zgid) return zgid
+  }
+
+  return String(
+    pickNestedValue(orgInfo, [
+      'orgIdentifier',
+      'organizationID',
+      'organizationId',
+      'Organization_ID',
+      'id',
+      'zgid',
+      'zg_id',
+      'org_id',
+      'OrgId',
+      'OrgID',
+    ]) || '',
+  ).trim()
+}
+
+export function getStoredUserEmail() {
+  const userInfo = getStoredZohoUserInfo()
+  const email = String(
+    pickNestedValue(userInfo, [
+      'email',
+      'Email',
+      'userEmail',
+      'UserEmail',
+      'email_id',
+      'emailId',
+      'primary_email',
+      'PrimaryEmail',
+    ]) || '',
+  ).trim()
+
+  if (email) return email
+
+  const isLocal =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    import.meta.env.DEV
+
+  if (isLocal) {
+    return 'hassan.a@zenithinnovations.net'
+  }
+
+  return ''
+}
+
+export function getStoredWalletIdentifier() {
+  const orgPayload = safeParseJson(localStorage.getItem('organization_details_response') || '{}') || {}
+  const walletId = (
+    orgPayload?.OrganizationDetails?.walletIdentifier ||
+    orgPayload?.OrgDetails?.walletIdentifier ||
+    localStorage.getItem('usage_details_wallet_identifier') ||
+    ''
+  ).trim()
+
+  if (walletId) return walletId
+
+  const isLocal =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    import.meta.env.DEV
+
+  if (isLocal) {
+    return 'Wal775AAC24994C'
+  }
+
+  return ''
+}
+
+export async function fetchAndStoreZohoCrmContext(pageLoadData) {
+  return storeZohoCrmContext(pageLoadData)
+}
+
+export function buildOrganizationDetailsRequestBody() {
+  const isLocal =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    import.meta.env.DEV
+
+  if (isLocal) {
+    return {
+      orgIdentifier: 'ORG-2012',
+      orgName: 'Prime Cloud Industries',
+      orgPrimayEmail: 'prime@cloudtech.com',
+      orgPhone: '+92-321-9876543',
+      orgAddress: 'Plot 45, G-10 Markaz, Islamabad, Pakistan',
+      orgStatus: 'Paid',
+    }
+  }
+
+  const orgInfo = getStoredZohoOrgInfo()
+  const orgIdentifier = getStoredZohoOrgIdentifier()
+
+  return compactObject({
+    orgIdentifier,
+    orgName: pickNestedValue(orgInfo, ['company_name', 'companyName', 'orgName', 'organizationName', 'name', 'Name']),
+    orgPrimayEmail: pickNestedValue(orgInfo, [
+      'primary_email',
+      'primaryEmail',
+      'organizationPrimaryEmail',
+      'orgPrimaryEmail',
+      'email',
+      'Email',
+    ]),
+    orgPhone: pickNestedValue(orgInfo, ['phone', 'Phone', 'mobile', 'Mobile', 'orgPhone']),
+    orgAddress: pickNestedValue(orgInfo, ['address', 'Address', 'street', 'Street', 'orgAddress']),
+    orgStatus: pickNestedValue(orgInfo, ['organizationStatus', 'orgStatus', 'status', 'Status']),
+  })
+}
+
+export function buildUserDetailsRequestBody(orgIdentifier = getStoredOrgIdentifier()) {
+  const userInfo = getStoredZohoUserInfo()
+  const email = getStoredUserEmail()
+  const fullName = String(
+    pickNestedValue(userInfo, ['full_name', 'fullName', 'name', 'Name', 'userName', 'UserName']) || '',
+  ).trim()
+  const [firstName = '', ...lastNameParts] = fullName.split(/\s+/).filter(Boolean)
+
+  return compactObject({
+    userName: pickNestedValue(userInfo, ['userName', 'UserName', 'alias', 'Alias', 'zuid', 'id']) || email,
+    userFirstName: pickNestedValue(userInfo, ['first_name', 'firstName', 'userFirstName']) || firstName,
+    userLastName: pickNestedValue(userInfo, ['last_name', 'lastName', 'userLastName']) || lastNameParts.join(' '),
+    userPhone: pickNestedValue(userInfo, ['phone', 'Phone', 'mobile', 'Mobile', 'userPhone']),
+    userEmail: email,
+    orgIdentifier,
+  })
+}
+
 export function getZohoApiBaseUrl() {
   return import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_INTEGRATION_API_BASE_URL || DEFAULT_API_BASE_URL
 }
@@ -39,14 +243,28 @@ export function getZohoRequestHeaders(headers = {}) {
 }
 
 export function getStoredOrgIdentifier() {
-  return (
+  const stored = (
     localStorage.getItem('module_list_org_identifier') ||
     localStorage.getItem('field_list_org_identifier') ||
     localStorage.getItem('organization_identifier') ||
+    getStoredZohoOrgIdentifier() ||
     import.meta.env.VITE_MODULE_LIST_ORG_IDENTIFIER ||
     import.meta.env.VITE_FIELD_LIST_ORG_IDENTIFIER ||
-    DEFAULT_ORG_IDENTIFIER
-  )
+    ''
+  ).trim()
+
+  if (stored) return stored
+
+  const isLocal =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    import.meta.env.DEV
+
+  if (isLocal) {
+    return 'ORG-2012'
+  }
+
+  return ''
 }
 
 export function getZohoWidgetSdk() {
@@ -266,7 +484,7 @@ export async function retrieveZohoAuthUrl(options = {}) {
   return authUrl
 }
 
-export function createZohoIntegration({ grantCode, orgIdentifier = DEFAULT_ORG_IDENTIFIER }, options = {}) {
+export function createZohoIntegration({ grantCode, orgIdentifier = getStoredOrgIdentifier() }, options = {}) {
   return requestZohoIntegration('/api/Integration/v1/CreateIntegration', {
     method: 'POST',
     headers: {

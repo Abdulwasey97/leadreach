@@ -2,7 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import AdvancedFilteringCard from '../components/leadSearch/AdvancedFilteringCard'
 import Sidebar from '../components/layout/Sidebar'
 import { platformTargets } from '../data/leadSearchData'
-import { exportToZohoCrm, fetchZohoFields, fetchZohoModules, getStoredOrgIdentifier } from '../services/zohoIntegration'
+import {
+  exportToZohoCrm,
+  fetchZohoFields,
+  fetchZohoModules,
+  getStoredOrgIdentifier,
+  getStoredUserEmail,
+  getStoredWalletIdentifier,
+} from '../services/zohoIntegration'
 
 const EMAIL_TYPES_BY_CATEGORY = {
   personal: ['gmail', 'outlook', 'hotmail', 'yahoo'],
@@ -391,13 +398,7 @@ const getOrgWalletFromStorage = () => {
 }
 
 const getWalletIdentifierFromStorage = () => {
-  const orgPayload = safeParseJson(localStorage.getItem('organization_details_response') || '{}')
-  return (
-    orgPayload?.OrganizationDetails?.walletIdentifier ||
-    orgPayload?.OrgDetails?.walletIdentifier ||
-    localStorage.getItem('usage_details_wallet_identifier') ||
-    'Wal775AAC24994C'
-  )
+  return getStoredWalletIdentifier()
 }
 
 const findNestedValue = (source, keys) => {
@@ -508,7 +509,6 @@ const isPlatformAvailable = (platformId, wallet) => {
 function LeadSearchPage() {
   const PAGE_SIZE = 10
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://leadreach.api-pct.com'
-  const leadLookupUserEmail = import.meta.env.VITE_LEAD_LOOKUP_USER_EMAIL || 'hassan.a@zenithinnovations.net'
   const [query, setQuery] = useState('software houses in rawalpindi')
   const [selectedSource, setSelectedSource] = useState('google')
   const [emailCategory, setEmailCategory] = useState('personal')
@@ -759,14 +759,22 @@ function LeadSearchPage() {
 
     setLoading(true)
     setError('')
-    const orgIdentifier = localStorage.getItem('organization_identifier') || 'ORG-2012'
+    const orgIdentifier = getStoredOrgIdentifier()
+    const leadLookupUserEmail = getStoredUserEmail()
     const sourceForPayload = SOURCE_TO_API_VALUE[selectedSource] || selectedSource
-    const orgPayload = JSON.parse(localStorage.getItem('organization_details_response') || '{}')
-    const walletIdentifier =
-      orgPayload?.OrganizationDetails?.walletIdentifier ||
-      orgPayload?.OrgDetails?.walletIdentifier ||
-      localStorage.getItem('usage_details_wallet_identifier') ||
-      'Wal775AAC24994C'
+    const walletIdentifier = getStoredWalletIdentifier()
+
+    if (!orgIdentifier) {
+      setLoading(false)
+      setError('Zoho organization details are not available yet. Please reload the widget and try again.')
+      return
+    }
+
+    if (!leadLookupUserEmail) {
+      setLoading(false)
+      setError('Zoho user details are not available yet. Please reload the widget and try again.')
+      return
+    }
 
     try {
       const response = await fetch(`${apiBaseUrl}/api/Leads/v2/LookingUp_Leads`, {
@@ -1007,7 +1015,15 @@ function LeadSearchPage() {
   }
 
   const handleEnrichEmail = async (lead, rowKey) => {
-    const orgIdentifier = localStorage.getItem('organization_identifier') || 'ORG-2012'
+    const orgIdentifier = getStoredOrgIdentifier()
+    if (!orgIdentifier) {
+      window.dispatchEvent(
+        new CustomEvent('zoho-toast', {
+          detail: { type: 'error', message: 'Zoho organization details are not available yet. Please reload the widget and try again.' },
+        }),
+      )
+      return
+    }
     const leadIdentifier = getLeadIdentifier(lead)
     const leadName = getLeadDisplayName(lead)
     const leadWebsite = getLeadWebsite(lead)

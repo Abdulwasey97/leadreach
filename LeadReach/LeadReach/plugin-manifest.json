@@ -1,0 +1,21 @@
+{
+ "manifestVersion": "1.0",
+ "name": "LeadReach",
+ "description": "LeadReach Extension for Zoho CRM",
+ "version": "1.0.0",
+ "author": "Your Company",
+ "service": "CRM",
+ "extension": {
+ "components": [
+ {
+ "type": "widget",
+ "name": "LeadReachWidget",
+ "path": "index.html",
+ "location": "detailView",
+ "module": "Leads",
+ "height": "600",
+ "width": "550"
+ }
+ ]
+ }
+}
