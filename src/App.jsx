@@ -8,14 +8,7 @@ import NotFoundPage from './pages/NotFoundPage'
 import SettingsPage from './pages/SettingsPage'
 import { ROUTES } from './routes'
 import {
-<<<<<<< Updated upstream
   createZohoIntegration,
-=======
-  buildOrganizationDetailsRequestBody,
-  buildUserDetailsRequestBody,
-  createZohoIntegration,
-  fetchAndStoreZohoCrmContext,
->>>>>>> Stashed changes
   getStoredOrgIdentifier,
   initializeZohoWidgetSdk,
   retrieveZohoIntegrationList,
@@ -515,29 +508,7 @@ function App() {
 
     const bootstrapOrgAndUser = async () => {
       try {
-<<<<<<< Updated upstream
         let orgIdentifier = ''
-=======
-        await initializeZohoWidgetSdk()
-        await fetchAndStoreZohoCrmContext()
-
-        const orgRequestBody = buildOrganizationDetailsRequestBody()
-
-        if (!orgRequestBody.orgIdentifier) {
-          throw new Error('Zoho organization identifier was not available from the Widget SDK')
-        }
-
-        crmLog('FetchOrganizationDetails started', orgRequestBody)
-        const orgResponse = await fetch(`${apiBaseUrl}/api/Org/v1/FetchOrganizationDetails`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            DataCenter: 'crm.zoho.com',
-            referer: 'https://localhost:44352',
-          },
-          body: JSON.stringify(orgRequestBody),
-        })
->>>>>>> Stashed changes
 
         if (isZohoCrmIframeContext()) {
           crmLog('Bootstrap using Zoho CRM SDK organization/user context')
@@ -590,16 +561,8 @@ function App() {
             orgPayload?.orgIdentifier ||
             orgRequestBody.orgIdentifier
 
-<<<<<<< Updated upstream
           localStorage.setItem('organization_identifier', orgIdentifier)
           crmLog('Organization identifier stored', { orgIdentifier })
-=======
-        const userRequestBody = buildUserDetailsRequestBody(orgIdentifier)
-
-        if (!userRequestBody.userEmail) {
-          throw new Error('Zoho user email was not available from the Widget SDK')
-        }
->>>>>>> Stashed changes
 
           const userRequestBody = {
             userName: 'hassan.ali',
@@ -691,17 +654,7 @@ function App() {
       let consentError = ''
 
       try {
-<<<<<<< Updated upstream
         const orgIdentifier = getCurrentOrganizationIdentifier()
-=======
-        await fetchAndStoreZohoCrmContext()
-        const orgIdentifier = getStoredOrgIdentifier()
-
-        if (!orgIdentifier) {
-          throw new Error('Zoho organization identifier was not available from the Widget SDK')
-        }
-
->>>>>>> Stashed changes
         const payload = await createZohoIntegration(
           { grantCode, orgIdentifier },
           { apiBaseUrl: integrationApiBaseUrl },
