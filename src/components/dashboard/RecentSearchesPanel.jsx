@@ -119,6 +119,8 @@ function getSearchList(payload) {
 function normalizeSearch(item, index) {
   const platform = normalizePlatform(
     getField(item, [
+      "searchType",
+      "SearchType",
       "source",
       "Source",
       "platform",
@@ -239,7 +241,7 @@ function QueryText({ loading, query }) {
 
 async function fetchRecentSearches(apiBaseUrl, orgIdentifier) {
   const response = await fetch(
-    `${apiBaseUrl}/api/Org/v1/Retrieve_RecentSearches`,
+    `${apiBaseUrl}/api/Org/v2/Retrieve_RecentSearches`,
     {
       method: "POST",
       headers: {
@@ -366,7 +368,14 @@ function RecentSearchesPanel({ apiBaseUrl, orgIdentifier }) {
                     {String(index + 1).padStart(2, "0")}
                   </span>
                   <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-                    <QueryText loading={loading} query={search.query} />
+                    <div className="min-w-0">
+                      <QueryText loading={loading} query={search.query} />
+                      {!loading ? (
+                        <span className="mt-1 inline-flex rounded-md bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                          {search.platform}
+                        </span>
+                      ) : null}
+                    </div>
                     <span className="whitespace-nowrap rounded-md bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
                       {loading ? "Recent" : formatDate(search.createdAt)}
                     </span>

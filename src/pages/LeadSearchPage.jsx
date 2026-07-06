@@ -223,6 +223,47 @@ function normalizeLookupLead(lead) {
   return leadIdentifier ? { ...lead, leadIdentifier } : lead
 }
 
+function getLeadsFromLookupPayload(payload) {
+  return Array.isArray(payload?.Leads)
+    ? payload.Leads
+    : Array.isArray(payload?.leads)
+    ? payload.leads
+    : []
+}
+
+function getNextPageTokenFromLookupPayload(payload) {
+  return (
+    payload?.nextPageToken ??
+    payload?.NextPageToken ??
+    payload?.pageToken ??
+    payload?.PageToken ??
+    payload?.page_token ??
+    payload?.Page_Token ??
+    ''
+  )
+}
+
+function buildLookupSearchPayload({ orgIdentifier, query, source, userEmail, emailCategory, emailTypes, nextPageToken }) {
+  const payload = {
+    orgIdentifier,
+    query,
+    source,
+    userEmail,
+    emailCategory,
+    emailTypes,
+  }
+
+  if (nextPageToken) {
+    payload.nextPageToken = nextPageToken
+  }
+
+  return payload
+}
+
+function getResolvedTotalLeads(payload, fallbackLength) {
+  return Number(payload?.TotalLeads ?? payload?.totalEmails) || fallbackLength
+}
+
 function getLeadDisplayName(lead) {
   const first = String(lead?.firstName || '').trim()
   const last = String(lead?.lastName || '').trim()
@@ -517,6 +558,8 @@ function LeadSearchPage() {
   const [error, setError] = useState('')
   const [leads, setLeads] = useState([])
   const [totalLeads, setTotalLeads] = useState(0)
+  const [nextPageToken, setNextPageToken] = useState('')
+  const [isFetchingNextPage, setIsFetchingNextPage] = useState(false)
   const [searchStateByPlatform, setSearchStateByPlatform] = useState({})
   const [selectedRows, setSelectedRows] = useState({})
   const [enrichLoadingByRow, setEnrichLoadingByRow] = useState({})
@@ -560,7 +603,11 @@ function LeadSearchPage() {
   )
 
   const [currentPage, setCurrentPage] = useState(1)
-  const totalPages = Math.max(1, Math.ceil((totalLeads || leads.length) / PAGE_SIZE))
+  const loadedPageCount = Math.max(1, Math.ceil(leads.length / PAGE_SIZE))
+  const totalPages = nextPageToken
+    ? loadedPageCount + 1
+    : Math.max(1, Math.ceil((totalLeads || leads.length) / PAGE_SIZE))
+  const showPaginationControls = loadedPageCount > 1 || Boolean(nextPageToken)
   const paginatedLeads = useMemo(() => {
     const startIndex = (currentPage - 1) * PAGE_SIZE
     return leads.slice(startIndex, startIndex + PAGE_SIZE)
@@ -702,6 +749,7 @@ function LeadSearchPage() {
       const cachedState = searchStateByPlatform[selectedSource]
       setLeads(cachedState?.leads || [])
       setTotalLeads(cachedState?.totalLeads || 0)
+      setNextPageToken(cachedState?.nextPageToken || '')
       setSelectedRows({})
       setEnrichEmailsByRow({})
       setEnrichCompletedByRow({})
@@ -710,7 +758,7 @@ function LeadSearchPage() {
     }, 0)
 
     return () => window.clearTimeout(timeoutId)
-  }, [searchStateByPlatform, selectedSource])
+  }, [selectedSource])
 
   const handleToggleEmailType = (type) => {
     setEmailTypes((prev) => {
@@ -777,19 +825,21 @@ function LeadSearchPage() {
     }
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/Leads/v2/LookingUp_Leads`, {
+      const response = await fetch(`${apiBaseUrl}/api/Leads/v3/LookingUp_Leads`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          orgIdentifier,
-          query: query.trim(),
-          source: sourceForPayload,
-          userEmail: leadLookupUserEmail,
-          emailCategory,
-          emailTypes,
-        }),
+        body: JSON.stringify(
+          buildLookupSearchPayload({
+            orgIdentifier,
+            query: query.trim(),
+            source: sourceForPayload,
+            userEmail: leadLookupUserEmail,
+            emailCategory,
+            emailTypes,
+          }),
+        ),
       })
 
       if (!response.ok) {
@@ -802,17 +852,21 @@ function LeadSearchPage() {
         throw new Error(payload?.Reason || 'Unable to fetch leads right now.')
       }
 
-      const rawList = Array.isArray(payload?.Leads) ? payload.Leads : Array.isArray(payload?.leads) ? payload.leads : []
+      const rawList = getLeadsFromLookupPayload(payload)
       const list = rawList.map(normalizeLookupLead)
-      const resolvedTotalLeads = Number(payload?.TotalLeads ?? payload?.totalEmails) || list.length
+      const nextToken = getNextPageTokenFromLookupPayload(payload)
+      const resolvedTotalLeads = getResolvedTotalLeads(payload, list.length)
+
       setLeads(list)
       setTotalLeads(resolvedTotalLeads)
+      setNextPageToken(nextToken)
       setSearchStateByPlatform((prev) => ({
         ...prev,
         [selectedSource]: {
           hasSearched: true,
           leads: list,
           totalLeads: resolvedTotalLeads,
+          nextPageToken: nextToken,
         },
       }))
       setSelectedRows({})
@@ -836,12 +890,14 @@ function LeadSearchPage() {
     } catch (requestError) {
       setLeads([])
       setTotalLeads(0)
+      setNextPageToken('')
       setSearchStateByPlatform((prev) => ({
         ...prev,
         [selectedSource]: {
           hasSearched: true,
           leads: [],
           totalLeads: 0,
+          nextPageToken: '',
         },
       }))
       setSelectedRows({})
@@ -852,6 +908,88 @@ function LeadSearchPage() {
       setError(requestError instanceof Error ? requestError.message : 'Failed to search leads.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleFetchNextPage = async () => {
+    if (!nextPageToken) {
+      return
+    }
+
+    setIsFetchingNextPage(true)
+    setError('')
+    const orgIdentifier = getStoredOrgIdentifier()
+    const leadLookupUserEmail = getStoredUserEmail()
+    const sourceForPayload = SOURCE_TO_API_VALUE[selectedSource] || selectedSource
+    const walletIdentifier = getStoredWalletIdentifier()
+
+    if (!orgIdentifier) {
+      setError('Zoho organization details are not available yet. Please reload the widget and try again.')
+      setIsFetchingNextPage(false)
+      return
+    }
+
+    if (!leadLookupUserEmail) {
+      setError('Zoho user details are not available yet. Please reload the widget and try again.')
+      setIsFetchingNextPage(false)
+      return
+    }
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/Leads/v3/LookingUp_Leads`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(
+          buildLookupSearchPayload({
+            orgIdentifier,
+            query: query.trim(),
+            source: sourceForPayload,
+            userEmail: leadLookupUserEmail,
+            emailCategory,
+            emailTypes,
+            nextPageToken,
+          }),
+        ),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Lead lookup failed (${response.status})`)
+      }
+
+      const payload = await response.json()
+      const lookupFailed = payload?.Code !== 200 || String(payload?.Status || '').toLowerCase() !== 'success'
+      if (lookupFailed) {
+        throw new Error(payload?.Reason || 'Unable to fetch leads right now.')
+      }
+
+      const rawList = getLeadsFromLookupPayload(payload)
+      const newLeads = rawList.map(normalizeLookupLead)
+      const updatedLeads = [...leads, ...newLeads]
+      const nextToken = getNextPageTokenFromLookupPayload(payload)
+      const resolvedTotalLeads = getResolvedTotalLeads(payload, updatedLeads.length)
+
+      setLeads(updatedLeads)
+      setTotalLeads(resolvedTotalLeads)
+      setNextPageToken(nextToken)
+      setSearchStateByPlatform((prev) => ({
+        ...prev,
+        [selectedSource]: {
+          hasSearched: true,
+          leads: updatedLeads,
+          totalLeads: resolvedTotalLeads,
+          nextPageToken: nextToken,
+        },
+      }))
+
+      if (currentPage === loadedPageCount) {
+        setCurrentPage((prev) => prev + 1)
+      }
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Failed to fetch next page.')
+    } finally {
+      setIsFetchingNextPage(false)
     }
   }
 
@@ -1540,7 +1678,7 @@ function LeadSearchPage() {
                     </tbody>
                   </table>
                 </div>
-                {totalLeads > PAGE_SIZE ? (
+                {showPaginationControls ? (
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4">
                     <p className="text-sm text-slate-500">
                       Page {currentPage} of {totalPages}
@@ -1556,11 +1694,18 @@ function LeadSearchPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
+                        onClick={() => {
+                          const isLastLoadedPage = currentPage === loadedPageCount
+                          if (isLastLoadedPage && nextPageToken) {
+                            handleFetchNextPage()
+                            return
+                          }
+                          setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                        }}
+                        disabled={currentPage === totalPages || (currentPage === loadedPageCount && !nextPageToken) || isFetchingNextPage}
                         className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Next
+                        {currentPage === loadedPageCount && nextPageToken ? (isFetchingNextPage ? 'Loading...' : 'Next') : 'Next'}
                       </button>
                     </div>
                   </div>
