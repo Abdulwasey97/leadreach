@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { deleteZohoIntegration, retrieveZohoAuthUrl } from '../../services/zohoIntegration'
+import { deleteZohoIntegration, retrieveZohoAuthUrl, createZohoIntegration, retrieveZohoIntegrationList } from '../../services/zohoIntegration'
 
 function IntegrationIcon({ icon }) {
   if (typeof icon === 'string' && /^https?:\/\//.test(icon)) {
@@ -70,6 +70,7 @@ function IntegrationCard({ integration }) {
 
     try {
       const authUrl = await retrieveZohoAuthUrl({ apiBaseUrl })
+      console.log('Redirecting to new tab for Zoho consent with URL:', authUrl)
       const consentWindow = window.open(authUrl, 'leadreach_zoho_consent')
 
       if (!consentWindow) {
@@ -77,9 +78,75 @@ function IntegrationCard({ integration }) {
       }
 
       consentWindow.focus?.()
+
+      let isHandlingRedirect = false
+
+      const checkUrlChange = setInterval(async () => {
+        try {
+          const currentUrl = consentWindow.location.href
+          if (new URL(currentUrl).origin === window.location.origin) {
+            if (isHandlingRedirect) return
+            isHandlingRedirect = true
+
+            const urlObj = new URL(currentUrl)
+            const code = urlObj.searchParams.get('code')
+            consentWindow.close()
+            clearInterval(checkUrlChange)
+            clearInterval(checkIfTabBClosed)
+
+            if (code && code.includes('1000.')) {
+              try {
+                const createResponse = await createZohoIntegration({ grantCode: code }, { apiBaseUrl })
+                
+                if (createResponse?.Code === 200) {
+                  const listResponse = await retrieveZohoIntegrationList({}, { apiBaseUrl })
+                  
+                  if (listResponse?.Code === 200 && (listResponse.IntegrationList || listResponse.integrationList)) {
+                     const integrations = listResponse.IntegrationList || listResponse.integrationList
+                     localStorage.setItem('zoho_integration_list', JSON.stringify(integrations))
+                     localStorage.setItem('zoho_connected', 'true')
+                     setIsZohoConnected(true)
+                     window.dispatchEvent(
+                       new CustomEvent('zoho-toast', {
+                         detail: { type: 'success', message: 'Successfully Connected Integration' },
+                       })
+                     )
+                     window.dispatchEvent(new Event('zoho-connection-updated'))
+                  } else {
+                     throw new Error('Failed to retrieve integration list')
+                  }
+                } else {
+                  throw new Error(createResponse?.Reason || 'Failed to connect integration')
+                }
+              } catch (error) {
+                const message = error instanceof Error ? error.message : 'Failed to connect integration'
+                setErrorMessage(message)
+                window.dispatchEvent(new CustomEvent('zoho-toast', { detail: { type: 'error', message } }))
+              } finally {
+                setIsConnecting(false)
+              }
+            } else {
+              setErrorMessage('Authorization code missing. Try again!')
+              setIsConnecting(false)
+            }
+          }
+        } catch (err) {
+          // Cross-origin exception while on external provider domain; ignored.
+        }
+      }, 1000)
+
+      const checkIfTabBClosed = setInterval(() => {
+        if (consentWindow.closed) {
+          clearInterval(checkUrlChange)
+          clearInterval(checkIfTabBClosed)
+          if (!isHandlingRedirect) {
+            setIsConnecting(false)
+          }
+        }
+      }, 1000)
+
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to connect to Zoho CRM')
-    } finally {
       setIsConnecting(false)
     }
   }

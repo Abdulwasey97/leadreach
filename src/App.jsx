@@ -40,7 +40,7 @@ function getIntegrationAccessToken(payload) {
 
 function isKnownAppPath(pathname) {
   const normalizedPath = pathname.replace(/\/+$/, '') || '/'
-  return normalizedPath === '/' || Object.values(ROUTES).includes(normalizedPath)
+  return normalizedPath === '/' || normalizedPath === '/home' || Object.values(ROUTES).includes(normalizedPath)
 }
 
 function getCurrentOrganizationIdentifier() {
@@ -452,10 +452,18 @@ function App() {
 
   useEffect(() => {
     const handleZohoConsentComplete = (event) => {
-      if (event.origin !== window.location.origin || event.data?.type !== 'leadreach-zoho-consent-complete') {
+      const isSameOrigin = event.origin === window.location.origin
+      const isZohoOrigin = event.origin.endsWith('.zappsusercontent.com') || event.origin.endsWith('.zoho.com')
+      
+      if (!isSameOrigin && !isZohoOrigin) {
         return
       }
 
+      if (event.data?.type !== 'leadreach-zoho-consent-complete') {
+        return
+      }
+
+      console.log('Parent tab received consent completion message from new tab:', event.data)
       window.focus?.()
       navigate(ROUTES.crm, { replace: true })
       window.dispatchEvent(new Event('zoho-connection-updated'))
@@ -636,6 +644,10 @@ function App() {
 
     const params = new URLSearchParams(window.location.search)
     const grantCode = params.get('code')
+    
+    if (grantCode) {
+      console.log('Extracted grant code from URL:', grantCode)
+    }
 
     if (!grantCode) {
       crmLog('OAuth finalize skipped: no grant code')
@@ -698,11 +710,15 @@ function App() {
         type: 'leadreach-zoho-consent-complete',
         connected: localStorage.getItem('zoho_connected') === 'true',
         error: consentError,
+        url: window.location.href,
+        grantCode: grantCode,
       }
 
       if (window.opener && !window.opener.closed) {
         crmLog('Posting OAuth result to opener', consentMessage)
-        window.opener.postMessage(consentMessage, window.location.origin)
+        console.log('New tab is sending consent data back to parent tab:', consentMessage)
+        // Use '*' so the message reaches the parent even if the parent is on localhost and child is on Zoho
+        window.opener.postMessage(consentMessage, '*')
         window.opener.focus?.()
         window.setTimeout(() => window.close(), 100)
         return
@@ -733,6 +749,7 @@ function App() {
       <AppToasts successToast={successToast} errorToast={errorToast} />
       <Routes>
         <Route path="/" element={<Navigate to={ROUTES.dashboard} replace />} />
+        <Route path="/home" element={<Navigate to={ROUTES.dashboard} replace />} />
         <Route path={ROUTES.dashboard} element={<DashboardPage />} />
         <Route path={ROUTES.search} element={<LeadSearchPage />} />
         <Route path={ROUTES.history} element={<LeadSearchHistoryPage />} />
