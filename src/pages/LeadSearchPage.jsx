@@ -817,6 +817,14 @@ function LeadSearchPage() {
   const [crmFieldsError, setCrmFieldsError] = useState('')
   const [exportFieldMappings, setExportFieldMappings] = useState(DEFAULT_EXPORT_FIELD_MAPPINGS)
   const [exportSubmitting, setExportSubmitting] = useState(false)
+  const [modalToast, setModalToast] = useState({ type: '', message: '' })
+
+  const showModalToast = (type, message) => {
+    setModalToast({ type, message })
+    setTimeout(() => {
+      setModalToast((prev) => (prev.message === message ? { type: '', message: '' } : prev))
+    }, 4000)
+  }
 
   useEffect(() => {
     const handleConnectionUpdate = () => {
@@ -1362,13 +1370,27 @@ function LeadSearchPage() {
     }
 
     if (exportStep === 3) {
+      const hasLastName = Object.values(exportFieldMappings).some((val) => {
+        if (!val || val === 'Select') return false
+        const matchInFields = crmFields.find((f) => f.value === val)
+        if (matchInFields && matchInFields.label.toLowerCase() === 'last name') {
+          return true
+        }
+        const normalized = val.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').toLowerCase().trim().replace(/\s+/g, ' ')
+        return normalized === 'last name'
+      })
+
+      if (!hasLastName) {
+        showModalToast('error', 'Last name must be selected.')
+        return
+      }
       setExportStep(4)
       return
     }
 
     const dataToExport = buildExportData()
     if (!dataToExport.length) {
-      window.dispatchEvent(new CustomEvent('zoho-toast', { detail: { type: 'error', message: 'No lead data is available to export.' } }))
+      showModalToast('error', 'No lead data is available to export.')
       return
     }
 
@@ -1386,24 +1408,17 @@ function LeadSearchPage() {
         dataToExport,
       })
 
-      window.dispatchEvent(
-        new CustomEvent('zoho-toast', {
-          detail: {
-            type: 'success',
-            message:
-              payload?.Reason ||
-              `Exported ${dataToExport.length} lead${dataToExport.length === 1 ? '' : 's'} to ${selectedExportModule?.label || exportModule}.`,
-          },
-        }),
+      showModalToast(
+        'success',
+        payload?.Reason ||
+          `Exported ${dataToExport.length} lead${dataToExport.length === 1 ? '' : 's'} to ${selectedExportModule?.label || exportModule}.`,
       )
-      setShowExportModal(false)
-      setExportStep(1)
+      setTimeout(() => {
+        setShowExportModal(false)
+        setExportStep(1)
+      }, 1500)
     } catch (exportError) {
-      window.dispatchEvent(
-        new CustomEvent('zoho-toast', {
-          detail: { type: 'error', message: exportError instanceof Error ? exportError.message : 'ExportToCrm request failed' },
-        }),
-      )
+      showModalToast('error', exportError instanceof Error ? exportError.message : 'ExportToCrm request failed')
     } finally {
       setExportSubmitting(false)
     }
@@ -2068,7 +2083,16 @@ function LeadSearchPage() {
 
             {showExportModal ? (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-[2px]">
-                <div className="w-full max-w-3xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl">
+                <div className="relative w-full max-w-3xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl">
+                  {modalToast.message ? (
+                    <div className="absolute right-5 bottom-[72px] z-[60] animate-in fade-in slide-in-from-bottom-4 duration-200">
+                      <div className={`rounded-md px-3.5 py-1.5 text-xs font-bold text-white shadow-md ${
+                        modalToast.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'
+                      }`}>
+                        {modalToast.message}
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/80 px-5 py-4">
                     <div>
                       <h3 className="text-2xl font-bold text-cyan-700">Import Data</h3>
@@ -2167,10 +2191,7 @@ function LeadSearchPage() {
 
                       <div className="mt-6 flex items-start justify-between gap-4 rounded-lg border border-cyan-100 bg-cyan-50 px-5 py-4 text-sm leading-7 text-slate-700 shadow-sm">
                         <p className="border-l-2 border-cyan-400 pl-4">
-                          It is recommended to setup <span className="font-bold text-slate-900">Decimal Fields</span> for mapping{' '}
-                          <span className="font-bold text-slate-900">Latitude</span>, <span className="font-bold text-slate-900">Longitude</span>,{' '}
-                          <span className="font-bold text-slate-900">Rating</span> etc in your{' '}
-                          <span className="font-bold text-slate-900">CRM Module</span> before attempting data import.
+                          Before importing data, it is recommended to configure Decimal field types in your CRM module for values such as Latitude, Longitude, Rating, and other decimal-based fields to ensure accurate data mapping.
                         </p>
                         <button
                           type="button"
@@ -2186,22 +2207,6 @@ function LeadSearchPage() {
                     </div>
                   ) : exportStep === 3 ? (
                     <div className="bg-white px-7 py-5">
-                      <div className="flex items-start justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900">
-                        <p>
-                          You must map <span className="font-semibold">"Last Name"</span> because these are the required fields in this module.
-                        </p>
-                        <button
-                          type="button"
-                          className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-amber-900 transition hover:bg-amber-100 hover:text-slate-950"
-                          aria-label="Dismiss required field warning"
-                        >
-                          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                            <path d="M18 6 6 18" />
-                            <path d="m6 6 12 12" />
-                          </svg>
-                        </button>
-                      </div>
-
                       <h4 className="mt-4 text-sm font-bold text-slate-800">
                         {selectedExportModule?.label || exportModule} ( Mapping )
                       </h4>
@@ -2223,11 +2228,19 @@ function LeadSearchPage() {
                                   className="h-10 w-full cursor-pointer appearance-none rounded-md border border-slate-200 bg-white px-3 pr-10 text-sm text-slate-700 outline-none transition hover:border-cyan-200 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 disabled:cursor-wait disabled:bg-slate-50"
                                 >
                                   {crmFieldsLoading ? <option value="">Loading fields...</option> : null}
-                                  {crmFields.map((crmField) => (
-                                    <option key={crmField.value} value={crmField.value}>
-                                      {crmField.label}
-                                    </option>
-                                  ))}
+                                  {(() => {
+                                    const otherSelected = Object.entries(exportFieldMappings)
+                                      .filter(([f, val]) => f !== field && val && val !== 'Select')
+                                      .map((entry) => entry[1])
+
+                                    return crmFields
+                                      .filter((crmField) => crmField.value === 'Select' || !otherSelected.includes(crmField.value))
+                                      .map((crmField) => (
+                                        <option key={crmField.value} value={crmField.value}>
+                                          {crmField.label}
+                                        </option>
+                                      ))
+                                  })()}
                                 </select>
                                 <svg
                                   viewBox="0 0 20 20"
