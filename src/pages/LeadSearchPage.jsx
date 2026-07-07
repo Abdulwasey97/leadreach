@@ -547,6 +547,243 @@ const isPlatformAvailable = (platformId, wallet) => {
   return isEnabled && utilized < total
 }
 
+function convertLeadsToCSV(leadsList, isLinkedInSelected, enrichEmailsByRow) {
+  if (!leadsList.length) return ''
+  const headers = isLinkedInSelected
+    ? ['Name', 'Email', 'Address', 'Current Company', 'Followers', 'Connections']
+    : ['Name', 'Phone', 'Website', 'Email', 'Address', 'Rating']
+
+  const rows = leadsList.map(lead => {
+    return headers.map(header => {
+      let val = ''
+      if (header === 'Name') {
+        const name = getLeadDisplayName(lead)
+        val = name === 'N/A' ? '' : name
+      } else if (header === 'Phone') {
+        const phone = getLeadPhone(lead)
+        val = phone === 'N/A' ? '' : phone
+      } else if (header === 'Website') {
+        val = getLeadWebsite(lead)
+      } else if (header === 'Email') {
+        const emails = getLeadEmails(lead, enrichEmailsByRow[getLeadIdentifier(lead)] || [])
+        const firstEmail = emails[0] || ''
+        val = (firstEmail === '[]' || !firstEmail) ? '' : firstEmail
+      } else if (header === 'Address') {
+        const addr = getLeadAddress(lead)
+        val = addr === 'N/A' ? '' : addr
+      } else if (header === 'Rating') {
+        val = getLeadRatingLabel(lead)
+      } else if (header === 'Current Company') {
+        const comp = getLeadCurrentCompany(lead)
+        val = comp === 'N/A' ? '' : comp
+      } else if (header === 'Followers') {
+        const foll = getLeadFollowerCount(lead)
+        val = foll === 'N/A' ? '' : foll
+      } else if (header === 'Connections') {
+        const conn = getLeadConnectionCount(lead)
+        val = conn === 'N/A' ? '' : conn
+      }
+
+      const strVal = val === undefined || val === null ? '' : String(val)
+      return `"${strVal.replace(/"/g, '""')}"`
+    }).join(',')
+  })
+
+  return [headers.join(','), ...rows].join('\n')
+}
+
+function convertLeadsToExcelXML(leadsList, isLinkedInSelected, enrichEmailsByRow) {
+  if (!leadsList.length) return ''
+  const headers = isLinkedInSelected
+    ? ['Name', 'Email', 'Address', 'Current Company', 'Followers', 'Connections']
+    : ['Name', 'Phone', 'Website', 'Email', 'Address', 'Rating']
+
+  let xml = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">'
+  xml += '<head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Leads</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table>'
+  
+  xml += '<tr>' + headers.map(k => `<th>${k}</th>`).join('') + '</tr>'
+  leadsList.forEach(lead => {
+    xml += '<tr>' + headers.map(header => {
+      let val = ''
+      if (header === 'Name') {
+        const name = getLeadDisplayName(lead)
+        val = name === 'N/A' ? '' : name
+      } else if (header === 'Phone') {
+        const phone = getLeadPhone(lead)
+        val = phone === 'N/A' ? '' : phone
+      } else if (header === 'Website') {
+        val = getLeadWebsite(lead)
+      } else if (header === 'Email') {
+        const emails = getLeadEmails(lead, enrichEmailsByRow[getLeadIdentifier(lead)] || [])
+        const firstEmail = emails[0] || ''
+        val = (firstEmail === '[]' || !firstEmail) ? '' : firstEmail
+      } else if (header === 'Address') {
+        const addr = getLeadAddress(lead)
+        val = addr === 'N/A' ? '' : addr
+      } else if (header === 'Rating') {
+        val = getLeadRatingLabel(lead)
+      } else if (header === 'Current Company') {
+        const comp = getLeadCurrentCompany(lead)
+        val = comp === 'N/A' ? '' : comp
+      } else if (header === 'Followers') {
+        const foll = getLeadFollowerCount(lead)
+        val = foll === 'N/A' ? '' : foll
+      } else if (header === 'Connections') {
+        const conn = getLeadConnectionCount(lead)
+        val = conn === 'N/A' ? '' : conn
+      }
+
+      const strVal = val === undefined || val === null ? '' : String(val)
+      return `<td>${strVal}</td>`
+    }).join('') + '</tr>'
+  })
+  xml += '</table></body></html>'
+  return xml
+}
+
+function wrapText(text, maxCharsPerLine) {
+  if (!text) return []
+  const words = text.split(' ')
+  const lines = []
+  let currentLine = ''
+
+  words.forEach(word => {
+    if ((currentLine + ' ' + word).trim().length <= maxCharsPerLine) {
+      currentLine = (currentLine + ' ' + word).trim()
+    } else {
+      if (currentLine) {
+        lines.push(currentLine)
+      }
+      currentLine = word
+      while (currentLine.length > maxCharsPerLine) {
+        lines.push(currentLine.slice(0, maxCharsPerLine))
+        currentLine = currentLine.slice(maxCharsPerLine)
+      }
+    }
+  })
+  if (currentLine) {
+    lines.push(currentLine)
+  }
+  return lines
+}
+
+function convertLeadsToPDF(leadsList, isLinkedInSelected, enrichEmailsByRow) {
+  if (!leadsList.length) return ''
+  const headers = isLinkedInSelected
+    ? ['Name', 'Email', 'Address', 'Current Company', 'Followers', 'Connections']
+    : ['Name', 'Phone', 'Website', 'Email', 'Address', 'Rating']
+
+  const colWidths = isLinkedInSelected
+    ? [100, 90, 140, 100, 60, 65]
+    : [130, 70, 80, 80, 150, 45]
+
+  let pdf = "%PDF-1.4\n"
+  pdf += "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+  pdf += "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
+  pdf += "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> >> >> /Contents 4 0 R >>\nendobj\n"
+
+  let stream = "BT\n"
+  stream += "/F2 16 Tf\n20 800 Td\n(Lead Search Results) Tj\nT*\n"
+  stream += "/F1 10 Tf\n0 -10 Td\n(Generated on " + new Date().toLocaleDateString() + ") Tj\n"
+  stream += "ET\n"
+
+  let y = 740
+  stream += "q\n"
+  stream += "0.9 0.95 0.98 rg\n"
+  stream += `20 ${y} re f\n`
+  stream += "Q\n"
+
+  stream += "BT\n/F2 9 Tf\n"
+  let x = 20
+  headers.forEach((h, i) => {
+    stream += `${x} ${y + 5} Td\n(${h}) Tj\n`
+    stream += `-${x} -${y + 5} Td\n`
+    x += colWidths[i]
+  })
+  stream += "ET\n"
+
+  stream += `q\n0.5 w\n0.2 G\n20 ${y} m 575 ${y} l s\nQ\n`
+
+  leadsList.forEach((lead) => {
+    const rowValues = headers.map(h => {
+      if (h === 'Name') {
+        const name = getLeadDisplayName(lead)
+        return name === 'N/A' ? '' : name
+      }
+      if (h === 'Phone') {
+        const phone = getLeadPhone(lead)
+        return phone === 'N/A' ? '' : phone
+      }
+      if (h === 'Website') {
+        return getLeadWebsite(lead)
+      }
+      if (h === 'Email') {
+        const emails = getLeadEmails(lead, enrichEmailsByRow[getLeadIdentifier(lead)] || [])
+        const firstEmail = emails[0] || ''
+        return (firstEmail === '[]' || !firstEmail) ? '' : firstEmail
+      }
+      if (h === 'Address') {
+        const addr = getLeadAddress(lead)
+        return addr === 'N/A' ? '' : addr
+      }
+      if (h === 'Rating') {
+        return getLeadRatingLabel(lead)
+      }
+      if (h === 'Current Company') {
+        const comp = getLeadCurrentCompany(lead)
+        return comp === 'N/A' ? '' : comp
+      }
+      if (h === 'Followers') {
+        const foll = getLeadFollowerCount(lead)
+        return foll === 'N/A' ? '' : foll
+      }
+      if (h === 'Connections') {
+        const conn = getLeadConnectionCount(lead)
+        return conn === 'N/A' ? '' : conn
+      }
+      return ''
+    })
+
+    const colLines = rowValues.map((val, colIdx) => {
+      const cleanVal = String(val || '').replace(/[()]/g, '')
+      const maxChars = Math.floor(colWidths[colIdx] / 5.2)
+      return wrapText(cleanVal, maxChars)
+    })
+
+    const rowLineCount = Math.max(...colLines.map(lines => lines.length), 1)
+    const rowHeight = rowLineCount * 11 + 8
+
+    if (y - rowHeight < 40) {
+      return
+    }
+
+    y -= rowHeight
+
+    stream += `q\n0.3 w\n0.8 G\n20 ${y} m 575 ${y} l s\nQ\n`
+
+    colLines.forEach((lines, colIdx) => {
+      let currX = 0
+      colWidths.slice(0, colIdx).forEach(w => { currX += w })
+      currX += 20
+
+      lines.forEach((lineText, lineIdx) => {
+        const textY = y + rowHeight - 12 - (lineIdx * 11)
+        stream += "BT\n/F1 8 Tf\n"
+        stream += `${currX} ${textY} Td\n(${lineText}) Tj\n`
+        stream += "ET\n"
+      })
+    })
+  })
+
+  stream += `q\n0.5 w\n0.2 G\n20 ${y} m 575 ${y} l s\nQ\n`
+
+  pdf += `4 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj\n`
+  pdf += "xref\n0 5\n0000000000 65535 f\n0000000009 00000 n\n0000000056 00000 n\n0000000111 00000 n\n0000000250 00000 n\n"
+  pdf += "trailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n500\n%%EOF"
+  
+  return pdf
+}
+
 function LeadSearchPage() {
   const PAGE_SIZE = 10
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://leadreach.api-pct.com'
@@ -569,6 +806,9 @@ function LeadSearchPage() {
   const [showExportModal, setShowExportModal] = useState(false)
   const [exportModule, setExportModule] = useState('')
   const [exportStep, setExportStep] = useState(1)
+  const [exportType, setExportType] = useState('zoho')
+  const [showDownloadFormatPopup, setShowDownloadFormatPopup] = useState(false)
+  const [isZohoConnected, setIsZohoConnected] = useState(() => localStorage.getItem('zoho_connected') === 'true')
   const [exportModules, setExportModules] = useState(EXPORT_MODULES)
   const [exportModulesLoading, setExportModulesLoading] = useState(false)
   const [exportModulesError, setExportModulesError] = useState('')
@@ -577,6 +817,16 @@ function LeadSearchPage() {
   const [crmFieldsError, setCrmFieldsError] = useState('')
   const [exportFieldMappings, setExportFieldMappings] = useState(DEFAULT_EXPORT_FIELD_MAPPINGS)
   const [exportSubmitting, setExportSubmitting] = useState(false)
+
+  useEffect(() => {
+    const handleConnectionUpdate = () => {
+      setIsZohoConnected(localStorage.getItem('zoho_connected') === 'true')
+    }
+    window.addEventListener('zoho-connection-updated', handleConnectionUpdate)
+    return () => {
+      window.removeEventListener('zoho-connection-updated', handleConnectionUpdate)
+    }
+  }, [])
 
   const selectedCount = useMemo(
     () => Object.values(selectedRows).filter(Boolean).length,
@@ -921,7 +1171,6 @@ function LeadSearchPage() {
     const orgIdentifier = getStoredOrgIdentifier()
     const leadLookupUserEmail = getStoredUserEmail()
     const sourceForPayload = SOURCE_TO_API_VALUE[selectedSource] || selectedSource
-    const walletIdentifier = getStoredWalletIdentifier()
 
     if (!orgIdentifier) {
       setError('Zoho organization details are not available yet. Please reload the widget and try again.')
@@ -1085,8 +1334,10 @@ function LeadSearchPage() {
   }
 
   const handleOpenExportModal = () => {
+    setExportType('zoho')
     setExportModule('')
     setExportStep(1)
+    setShowDownloadFormatPopup(false)
     setExportFieldMappings(
       selectedSource === 'linkedin' ? LINKEDIN_EXPORT_FIELD_MAPPINGS : DEFAULT_EXPORT_FIELD_MAPPINGS
     )
@@ -1096,6 +1347,7 @@ function LeadSearchPage() {
   const handleCloseExportModal = () => {
     setShowExportModal(false)
     setExportStep(1)
+    setShowDownloadFormatPopup(false)
   }
 
   const handleExportNext = async () => {
@@ -1106,6 +1358,11 @@ function LeadSearchPage() {
 
     if (exportStep === 2) {
       setExportStep(3)
+      return
+    }
+
+    if (exportStep === 3) {
+      setExportStep(4)
       return
     }
 
@@ -1150,6 +1407,55 @@ function LeadSearchPage() {
     } finally {
       setExportSubmitting(false)
     }
+  }
+
+  const handleDownloadFile = (format) => {
+    const selectedLeads = leads
+      .map((lead, index) => ({ lead, rowKey: getExportRowKey(lead, index) }))
+      .filter(({ rowKey }) => selectedCount === 0 || selectedRows[rowKey])
+
+    if (!selectedLeads.length) {
+      window.dispatchEvent(
+        new CustomEvent('zoho-toast', {
+          detail: { type: 'error', message: 'No lead data is available to export.' },
+        }),
+      )
+      return
+    }
+
+    const rawLeads = selectedLeads.map(({ lead }) => lead)
+
+    let fileContent = ''
+    let mimeType = 'text/plain'
+    let fileExtension = 'txt'
+
+    if (format === 'csv') {
+      fileContent = convertLeadsToCSV(rawLeads, isLinkedInSelected, enrichEmailsByRow)
+      mimeType = 'text/csv;charset=utf-8;'
+      fileExtension = 'csv'
+    } else if (format === 'excel') {
+      fileContent = convertLeadsToExcelXML(rawLeads, isLinkedInSelected, enrichEmailsByRow)
+      mimeType = 'application/vnd.ms-excel;charset=utf-8;'
+      fileExtension = 'xls'
+    } else if (format === 'pdf') {
+      fileContent = convertLeadsToPDF(rawLeads, isLinkedInSelected, enrichEmailsByRow)
+      mimeType = 'application/pdf'
+      fileExtension = 'pdf'
+    }
+
+    const blob = new Blob([fileContent], { type: mimeType })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `leads_export_${Date.now()}.${fileExtension}`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    setShowDownloadFormatPopup(false)
+    setShowExportModal(false)
+    setExportStep(1)
   }
 
   const handleEnrichEmail = async (lead, rowKey) => {
@@ -1308,7 +1614,7 @@ function LeadSearchPage() {
                     <button
                       type="button"
                       onClick={handleOpenExportModal}
-                      disabled={leads.length === 0}
+                      disabled={leads.length === 0 || selectedCount === 0}
                       className="inline-flex h-9 items-center gap-2 rounded-lg border border-cyan-200 bg-white px-3 text-sm font-semibold text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -1316,7 +1622,7 @@ function LeadSearchPage() {
                         <path d="m7 10 5 5 5-5" />
                         <path d="M5 21h14" />
                       </svg>
-                      Export
+                      {selectedCount === 0 && leads.length > 0 ? 'Select data first' : 'Export'}
                     </button>
                     <div className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
                       Selected: {selectedCount}
@@ -1767,7 +2073,7 @@ function LeadSearchPage() {
                     <div>
                       <h3 className="text-2xl font-bold text-cyan-700">Import Data</h3>
                       <p className="mt-1 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
-                        Step {exportStep} of 3
+                        Step {exportStep} of {exportType === 'zoho' ? 4 : 1}
                       </p>
                     </div>
                     <button
@@ -1784,6 +2090,48 @@ function LeadSearchPage() {
                   </div>
 
                   {exportStep === 1 ? (
+                    <div className="bg-white px-7 py-10">
+                      <div className="mx-auto max-w-md text-center">
+                        <label className="text-xl font-bold text-cyan-700 block mb-6">
+                          Select Export Option
+                        </label>
+                        <div className="flex flex-col gap-4 text-left border border-slate-200 rounded-xl p-5 bg-slate-50/50 shadow-sm">
+                          <label className={`flex items-start gap-3 p-3 rounded-lg border transition cursor-pointer ${exportType === 'zoho' ? 'border-cyan-500 bg-cyan-50/20' : 'border-slate-200 hover:border-slate-300 bg-white'}`}>
+                            <input
+                              type="radio"
+                              name="exportType"
+                              value="zoho"
+                              checked={exportType === 'zoho'}
+                              onChange={() => setExportType('zoho')}
+                              className="mt-1 size-4 text-cyan-600 focus:ring-cyan-500"
+                            />
+                            <div>
+                              <span className="block text-sm font-bold text-slate-800">Export to Zoho</span>
+                              <span className="block text-xs text-slate-500 mt-0.5">Export leads directly to your connected Zoho CRM modules</span>
+                              {!isZohoConnected && exportType === 'zoho' ? (
+                                <p className="mt-2 text-xs font-semibold text-rose-600">Connect Zoho first to enable this feature.</p>
+                              ) : null}
+                            </div>
+                          </label>
+
+                          <label className={`flex items-start gap-3 p-3 rounded-lg border transition cursor-pointer ${exportType === 'download' ? 'border-cyan-500 bg-cyan-50/20' : 'border-slate-200 hover:border-slate-300 bg-white'}`}>
+                            <input
+                              type="radio"
+                              name="exportType"
+                              value="download"
+                              checked={exportType === 'download'}
+                              onChange={() => setExportType('download')}
+                              className="mt-1 size-4 text-cyan-600 focus:ring-cyan-500"
+                            />
+                            <div>
+                              <span className="block text-sm font-bold text-slate-800">Download File</span>
+                              <span className="block text-xs text-slate-500 mt-0.5">Download leads to your local machine as CSV, Excel, or PDF</span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ) : exportStep === 2 ? (
                     <div className="bg-white px-7 py-10">
                       <div className="mx-auto max-w-xs text-center">
                         <label htmlFor="export-module" className="text-xl font-bold text-cyan-700">
@@ -1836,7 +2184,7 @@ function LeadSearchPage() {
                         </button>
                       </div>
                     </div>
-                  ) : exportStep === 2 ? (
+                  ) : exportStep === 3 ? (
                     <div className="bg-white px-7 py-5">
                       <div className="flex items-start justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900">
                         <p>
@@ -1929,17 +2277,82 @@ function LeadSearchPage() {
                         Previous
                       </button>
                     ) : null}
+                    {exportStep === 1 && exportType === 'download' ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowDownloadFormatPopup(true)}
+                        className="rounded-full border border-cyan-200 bg-cyan-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700"
+                      >
+                        Download
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleExportNext}
+                        disabled={(exportStep === 1 && exportType === 'zoho' && !isZohoConnected) || (exportStep === 2 && !exportModule) || exportSubmitting}
+                        className={`rounded-full border px-5 py-2 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                          exportStep === 4
+                            ? 'border-rose-300 bg-rose-50 text-rose-600 hover:bg-rose-100'
+                            : 'border-cyan-200 bg-white text-cyan-700 hover:border-cyan-300 hover:bg-cyan-50'
+                        }`}
+                      >
+                        {exportSubmitting ? 'Importing...' : exportStep === 4 ? 'Import' : 'Next'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {showDownloadFormatPopup ? (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/65 px-4 backdrop-blur-[1px]">
+                <div className="w-full max-w-md overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-4">
+                    <h4 className="text-lg font-bold text-slate-800">Select Export Format</h4>
                     <button
                       type="button"
-                      onClick={handleExportNext}
-                      disabled={(exportStep === 1 && !exportModule) || exportSubmitting}
-                      className={`rounded-full border px-5 py-2 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                        exportStep === 3
-                          ? 'border-rose-300 bg-rose-50 text-rose-600 hover:bg-rose-100'
-                          : 'border-cyan-200 bg-white text-cyan-700 hover:border-cyan-300 hover:bg-cyan-50'
-                      }`}
+                      onClick={() => setShowDownloadFormatPopup(false)}
+                      className="text-slate-400 hover:text-slate-600 transition"
                     >
-                      {exportSubmitting ? 'Importing...' : exportStep === 3 ? 'Import' : 'Next'}
+                      <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+                        <path d="M18 6 6 18" />
+                        <path d="m6 6 12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="p-6 space-y-3">
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadFile('csv')}
+                      className="flex w-full items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 hover:border-cyan-200 hover:bg-cyan-50/20 transition text-left"
+                    >
+                      <span className="inline-flex size-10 items-center justify-center rounded-lg bg-cyan-50 text-cyan-600 font-bold text-xs uppercase">CSV</span>
+                      <div>
+                        <span className="block text-sm font-semibold text-slate-800">CSV</span>
+                        <span className="block text-xs text-slate-500 mt-0.5">Compatible with Google Sheets, Excel, and database tools</span>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadFile('excel')}
+                      className="flex w-full items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 hover:border-cyan-200 hover:bg-cyan-50/20 transition text-left"
+                    >
+                      <span className="inline-flex size-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 font-bold text-xs uppercase">Excel</span>
+                      <div>
+                        <span className="block text-sm font-semibold text-slate-800">Excel</span>
+                        <span className="block text-xs text-slate-500 mt-0.5">Excel XML formatted workbook</span>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadFile('pdf')}
+                      className="flex w-full items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 hover:border-cyan-200 hover:bg-cyan-50/20 transition text-left"
+                    >
+                      <span className="inline-flex size-10 items-center justify-center rounded-lg bg-rose-50 text-rose-600 font-bold text-xs uppercase">PDF</span>
+                      <div>
+                        <span className="block text-sm font-semibold text-slate-800">PDF</span>
+                        <span className="block text-xs text-slate-500 mt-0.5">Clean table document for viewing or printing</span>
+                      </div>
                     </button>
                   </div>
                 </div>

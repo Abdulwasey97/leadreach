@@ -8,6 +8,8 @@ import NotFoundPage from './pages/NotFoundPage'
 import SettingsPage from './pages/SettingsPage'
 import { ROUTES } from './routes'
 import {
+  buildOrganizationDetailsRequestBody,
+  buildUserDetailsRequestBody,
   createZohoIntegration,
   getStoredOrgIdentifier,
   initializeZohoWidgetSdk,
@@ -517,13 +519,19 @@ function App() {
     const bootstrapOrgAndUser = async () => {
       try {
         let orgIdentifier = ''
+        let orgRequestBody = {}
+        let userRequestBody = {}
 
         if (isZohoCrmIframeContext()) {
           crmLog('Bootstrap using Zoho CRM SDK organization/user context')
-          const sdkContext = await getZohoCrmSdkContext()
-          orgIdentifier = sdkContext.orgIdentifier
+          await getZohoCrmSdkContext()
+
+          orgRequestBody = buildOrganizationDetailsRequestBody()
+          orgIdentifier = orgRequestBody.orgIdentifier
+          userRequestBody = buildUserDetailsRequestBody(orgIdentifier)
+          userRequestBody.userPass = 'P@ssw0rd123'
         } else {
-          const orgRequestBody = {
+          orgRequestBody = {
             orgIdentifier: 'ORG-2012',
             orgName: 'Prime Cloud Industries',
             orgPrimayEmail: 'prime@cloudtech.com',
@@ -532,47 +540,9 @@ function App() {
             orgStatus: 'Paid',
           }
 
-          crmLog('FetchOrganizationDetails started', orgRequestBody)
-          const orgResponse = await fetch(`${apiBaseUrl}/api/Org/v1/FetchOrganizationDetails`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              DataCenter: 'crm.zoho.com',
-              referer: 'https://localhost:44352',
-            },
-            body: JSON.stringify(orgRequestBody),
-          })
+          orgIdentifier = orgRequestBody.orgIdentifier
 
-          if (!orgResponse.ok) {
-            crmError('FetchOrganizationDetails HTTP failure', {
-              status: orgResponse.status,
-              statusText: orgResponse.statusText,
-            })
-            throw new Error(`FetchOrganizationDetails failed (${orgResponse.status})`)
-          }
-
-          const orgPayload = await orgResponse.json()
-          crmLog('FetchOrganizationDetails response parsed', orgPayload)
-          const orgFailed = orgPayload?.Code === 500 || String(orgPayload?.Status || '').toLowerCase() === 'failure'
-
-          if (orgFailed) {
-            crmError('FetchOrganizationDetails returned failure payload', orgPayload)
-            throw new Error(orgPayload?.Reason || 'FetchOrganizationDetails failed')
-          }
-
-          localStorage.setItem('organization_details_response', JSON.stringify(orgPayload))
-          window.dispatchEvent(new Event('organization-details-updated'))
-
-          orgIdentifier =
-            orgPayload?.OrganizationDetails?.orgIdentifier ||
-            orgPayload?.OrgDetails?.organizationID ||
-            orgPayload?.orgIdentifier ||
-            orgRequestBody.orgIdentifier
-
-          localStorage.setItem('organization_identifier', orgIdentifier)
-          crmLog('Organization identifier stored', { orgIdentifier })
-
-          const userRequestBody = {
+          userRequestBody = {
             userName: 'hassan.ali',
             userPass: 'P@ssw0rd123',
             userFirstName: 'Hassan',
@@ -581,39 +551,81 @@ function App() {
             userEmail: 'hassan.ali@primecloudtech.net',
             orgIdentifier,
           }
-
-          crmLog('FetchUserDetails started', {
-            ...userRequestBody,
-            userPass: '[hidden]',
-          })
-          const userResponse = await fetch(`${apiBaseUrl}/api/User/v1/FetchUserDetails`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(userRequestBody),
-          })
-
-          if (!userResponse.ok) {
-            crmError('FetchUserDetails HTTP failure', {
-              status: userResponse.status,
-              statusText: userResponse.statusText,
-            })
-            throw new Error(`FetchUserDetails failed (${userResponse.status})`)
-          }
-
-          const userPayload = await userResponse.json()
-          crmLog('FetchUserDetails response parsed', userPayload)
-          const userFailed = userPayload?.Code === 500 || String(userPayload?.Status || '').toLowerCase() === 'failure'
-
-          if (userFailed) {
-            crmError('FetchUserDetails returned failure payload', userPayload)
-            throw new Error(userPayload?.Reason || 'FetchUserDetails failed')
-          }
-
-          localStorage.setItem('user_details_response', JSON.stringify(userPayload))
-          localStorage.setItem('user_details', JSON.stringify(userPayload?.UserDetails || {}))
         }
+
+        crmLog('FetchOrganizationDetails started', orgRequestBody)
+        const orgResponse = await fetch(`${apiBaseUrl}/api/Org/v1/FetchOrganizationDetails`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            DataCenter: 'crm.zoho.com',
+            referer: 'https://localhost:44352',
+          },
+          body: JSON.stringify(orgRequestBody),
+        })
+
+        if (!orgResponse.ok) {
+          crmError('FetchOrganizationDetails HTTP failure', {
+            status: orgResponse.status,
+            statusText: orgResponse.statusText,
+          })
+          throw new Error(`FetchOrganizationDetails failed (${orgResponse.status})`)
+        }
+
+        const orgPayload = await orgResponse.json()
+        crmLog('FetchOrganizationDetails response parsed', orgPayload)
+        const orgFailed = orgPayload?.Code === 500 || String(orgPayload?.Status || '').toLowerCase() === 'failure'
+
+        if (orgFailed) {
+          crmError('FetchOrganizationDetails returned failure payload', orgPayload)
+          throw new Error(orgPayload?.Reason || 'FetchOrganizationDetails failed')
+        }
+
+        localStorage.setItem('organization_details_response', JSON.stringify(orgPayload))
+        window.dispatchEvent(new Event('organization-details-updated'))
+
+        orgIdentifier =
+          orgPayload?.OrganizationDetails?.orgIdentifier ||
+          orgPayload?.OrgDetails?.organizationID ||
+          orgPayload?.orgIdentifier ||
+          orgRequestBody.orgIdentifier
+
+        localStorage.setItem('organization_identifier', orgIdentifier)
+        crmLog('Organization identifier stored', { orgIdentifier })
+
+        userRequestBody.orgIdentifier = orgIdentifier
+
+        crmLog('FetchUserDetails started', {
+          ...userRequestBody,
+          userPass: '[hidden]',
+        })
+        const userResponse = await fetch(`${apiBaseUrl}/api/User/v1/FetchUserDetails`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(userRequestBody),
+        })
+
+        if (!userResponse.ok) {
+          crmError('FetchUserDetails HTTP failure', {
+            status: userResponse.status,
+            statusText: userResponse.statusText,
+          })
+          throw new Error(`FetchUserDetails failed (${userResponse.status})`)
+        }
+
+        const userPayload = await userResponse.json()
+        crmLog('FetchUserDetails response parsed', userPayload)
+        const userFailed = userPayload?.Code === 500 || String(userPayload?.Status || '').toLowerCase() === 'failure'
+
+        if (userFailed) {
+          crmError('FetchUserDetails returned failure payload', userPayload)
+          throw new Error(userPayload?.Reason || 'FetchUserDetails failed')
+        }
+
+        localStorage.setItem('user_details_response', JSON.stringify(userPayload))
+        localStorage.setItem('user_details', JSON.stringify(userPayload?.UserDetails || {}))
 
         const integrationListPayload = await retrieveZohoIntegrationList({ orgIdentifier }, { apiBaseUrl })
         crmLog('RetrieveIntegrationList completed during bootstrap', integrationListPayload)
