@@ -816,6 +816,7 @@ function LeadSearchPage() {
   const [crmFieldsLoading, setCrmFieldsLoading] = useState(false)
   const [crmFieldsError, setCrmFieldsError] = useState('')
   const [exportFieldMappings, setExportFieldMappings] = useState(DEFAULT_EXPORT_FIELD_MAPPINGS)
+  const [cachedCrmFields, setCachedCrmFields] = useState({})
   const [exportSubmitting, setExportSubmitting] = useState(false)
   const [modalToast, setModalToast] = useState({ type: '', message: '' })
 
@@ -872,7 +873,7 @@ function LeadSearchPage() {
   }, [currentPage, leads])
 
   useEffect(() => {
-    if (!showExportModal) {
+    if (!showExportModal || exportType !== 'zoho') {
       return undefined
     }
 
@@ -912,51 +913,45 @@ function LeadSearchPage() {
     fetchExportModules()
 
     return () => controller.abort()
-  }, [showExportModal])
+  }, [showExportModal, exportType])
 
-  useEffect(() => {
-    if (!showExportModal || exportStep !== 2) {
-      return undefined
+  const loadFieldsForModule = async (moduleName) => {
+    if (!moduleName) return
+
+    if (cachedCrmFields[moduleName]) {
+      setCrmFields(cachedCrmFields[moduleName])
+      return
     }
 
-    const controller = new AbortController()
-    const fetchCrmFields = async () => {
-      setCrmFieldsLoading(true)
-      setCrmFieldsError('')
+    setCrmFieldsLoading(true)
+    setCrmFieldsError('')
 
-      try {
-        const payload = await fetchZohoFields({
-          orgIdentifier: getStoredOrgIdentifier(),
-          integrationAccessToken: getIntegrationAccessTokenFromStorage(),
-          moduleName: exportModule,
-        }, {
-          signal: controller.signal,
-        })
-        const fields = normalizeFieldList(payload)
+    try {
+      const payload = await fetchZohoFields({
+        orgIdentifier: getStoredOrgIdentifier(),
+        integrationAccessToken: getIntegrationAccessTokenFromStorage(),
+        moduleName,
+      })
+      const fields = normalizeFieldList(payload)
 
-        if (!fields.length) {
-          throw new Error('No fields were returned')
-        }
-
-        setCrmFields([{ label: 'Select', value: 'Select' }, ...fields])
-      } catch (requestError) {
-        if (requestError instanceof Error && requestError.name === 'AbortError') {
-          return
-        }
-
-        setCrmFields(EXPORT_CRM_FIELDS.map((field) => ({ label: field, value: field })))
-        setCrmFieldsError(requestError instanceof Error ? requestError.message : 'Field_List request failed')
-      } finally {
-        if (!controller.signal.aborted) {
-          setCrmFieldsLoading(false)
-        }
+      if (!fields.length) {
+        throw new Error('No fields were returned')
       }
+
+      const fieldsList = [{ label: 'Select', value: 'Select' }, ...fields]
+      setCrmFields(fieldsList)
+      setCachedCrmFields((prev) => ({
+        ...prev,
+        [moduleName]: fieldsList,
+      }))
+    } catch (requestError) {
+      const defaultFields = EXPORT_CRM_FIELDS.map((field) => ({ label: field, value: field }))
+      setCrmFields(defaultFields)
+      setCrmFieldsError(requestError instanceof Error ? requestError.message : 'Field_List request failed')
+    } finally {
+      setCrmFieldsLoading(false)
     }
-
-    fetchCrmFields()
-
-    return () => controller.abort()
-  }, [exportModule, exportStep, showExportModal])
+  }
   const currentPageRowKeys = useMemo(
     () =>
       paginatedLeads.map((lead, index) => {
@@ -1353,10 +1348,12 @@ function LeadSearchPage() {
   }
 
   const handleCloseExportModal = () => {
-    setShowExportModal(false)
-    setExportStep(1)
-    setShowDownloadFormatPopup(false)
-  }
+     setShowExportModal(false)
+     setExportStep(1)
+     setExportModule('')
+     setCachedCrmFields({})
+     setShowDownloadFormatPopup(false)
+   }
 
   const handleExportNext = async () => {
     if (exportStep === 1) {
@@ -2165,7 +2162,13 @@ function LeadSearchPage() {
                           <select
                             id="export-module"
                             value={exportModule}
-                            onChange={(event) => setExportModule(event.target.value)}
+                            onChange={(event) => {
+                               const selected = event.target.value
+                               setExportModule(selected)
+                               if (selected) {
+                                 loadFieldsForModule(selected)
+                               }
+                             }}
                             disabled={exportModulesLoading}
                             className="h-11 w-full cursor-pointer appearance-none rounded-md border border-slate-200 bg-white px-3 pr-10 text-sm font-medium text-slate-700 shadow-sm outline-none transition hover:border-cyan-200 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 disabled:cursor-wait disabled:bg-slate-50"
                           >
